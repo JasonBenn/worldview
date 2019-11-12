@@ -21,7 +21,10 @@ def make_image_card_from_page(page_id, page_title, image_url, compression) -> st
 
 token_v2 = "b9d79f1c69e7c498da57eba93e26d34903808c76ab90d2760d340f473db40a607c8325a393c84de178c044f9661b7cc4fe3efceadbe72b6755bf859764df46f103de466695b6673c0bd420c7a214"
 
-page_url = sys.argv[1]
+export_type = sys.argv[1]
+page_url = sys.argv[2]
+assert export_type in ["text", "photo"]
+
 client = NotionClient(token_v2=token_v2)
 
 page = client.get_block(page_url)
@@ -31,20 +34,17 @@ rows = collection.get_rows()
 
 cards = []
 for row in rows:
-    images = [x for x in row.children if isinstance(x, ImageBlock)]
-    if not any(images):
-        continue
-    cards.append(make_image_card_from_page(row.id, row.title, images[0].source, row.get_all_properties()['compression']))
-    # cards.append(make_card_from_page(row.id, row.title))
-
-filename = page.title.lower().replace(' ', '-')
+    if export_type == "photo":
+        images = [x for x in row.children if isinstance(x, ImageBlock)]
+        if not any(images):
+            continue
+        cards.append(make_image_card_from_page(row.id, row.title, images[0].source, row.get_all_properties()['compression']))
+    elif export_type == "text":
+        cards.append(make_card_from_page(row.id, row.title))
 
 storage_dir = "/Users/jasonbenn/.notion-to-anki"
 os.makedirs(storage_dir, exist_ok=True)
+filename = page.title.lower().replace(' ', '-')
 with open(f"{storage_dir}/{filename}", "w") as f:
     for card in cards:
         print(card, file=f)
-
-
-import ipdb
-ipdb.set_trace()
