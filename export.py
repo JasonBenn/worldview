@@ -1,7 +1,7 @@
 import os
 import sys
 
-from notion.block import ImageBlock
+# from notion.block import ImageBlock
 from notion.client import NotionClient
 
 
@@ -11,7 +11,7 @@ def get_page_url(page_id: str, page_title: str) -> str:
     return f"notion://www.notion.so/{page_url}"
 
 
-def make_card_from_page(page_id, page_title) -> str:
+def make_card_from_text_page(page_id, page_title) -> str:
     return f"{page_id};<a href='{get_page_url(page_id, page_title)}'>{page_title}</a>;"
 
 
@@ -19,11 +19,15 @@ def make_image_card_from_page(page_id, page_title, image_url, compression) -> st
     return f"{page_id};<img src='{image_url}'>;<a href='{get_page_url(page_id, page_title)}'>{page_title}</a><br><p>{compression}</p>"
 
 
+def make_card_from_person_page(page_id, page_title, compression) -> str:
+    return f"{page_id};<a href='{get_page_url(page_id, page_title)}'>{page_title}</a>;{compression}"
+
+
 token_v2 = "b9d79f1c69e7c498da57eba93e26d34903808c76ab90d2760d340f473db40a607c8325a393c84de178c044f9661b7cc4fe3efceadbe72b6755bf859764df46f103de466695b6673c0bd420c7a214"
 
 export_type = sys.argv[1]
 page_url = sys.argv[2]
-assert export_type in ["text", "photo"]
+assert export_type in ["text", "people"]
 
 client = NotionClient(token_v2=token_v2)
 
@@ -34,13 +38,14 @@ rows = collection.get_rows()
 
 cards = []
 for row in rows:
-    if export_type == "photo":
-        images = [x for x in row.children if isinstance(x, ImageBlock)]
-        if not any(images):
-            continue
-        cards.append(make_image_card_from_page(row.id, row.title, images[0].source, row.get_all_properties()['compression']))
+    if export_type == "people":
+        # images = [x for x in row.children if isinstance(x, ImageBlock)]
+        # if not any(images):
+        #     continue
+        full_name = row.first_name.split(' ')[0] + ' ' + row.last_name
+        cards.append(make_card_from_person_page(row.id, full_name, row.compression))
     elif export_type == "text":
-        cards.append(make_card_from_page(row.id, row.title))
+        cards.append(make_card_from_text_page(row.id, row.title))
 
 storage_dir = "/Users/jasonbenn/.notion-to-anki"
 os.makedirs(storage_dir, exist_ok=True)
@@ -48,3 +53,7 @@ filename = page.title.lower().replace(' ', '-')
 with open(f"{storage_dir}/{filename}", "w") as f:
     for card in cards:
         print(card, file=f)
+
+# row = rows[0]
+# import ipdb
+# ipdb.set_trace()
