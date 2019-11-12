@@ -31,6 +31,7 @@ def make_card_from_person_page(row) -> str:
         f"<b>Compression:</b> {row.compression}<br>" \
         f"<b>Next Q:</b> {next_question}<br>" \
         f"<b>Groups:</b> {', '.join(row.groups)}<br>" \
+        f"<b>Location:</b> {', '.join(row.location)}<br>" \
         f"<b>Edited:</b> {row.edited.strftime('%-m/%-d/%y')}<br>" \
         f"<b>Added:</b> {row.added.strftime('%-m/%-d/%y')}"
 
