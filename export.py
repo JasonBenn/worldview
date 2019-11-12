@@ -19,8 +19,20 @@ def make_image_card_from_page(page_id, page_title, image_url, compression) -> st
     return f"{page_id};<img src='{image_url}'>;<a href='{get_page_url(page_id, page_title)}'>{page_title}</a><br><p>{compression}</p>"
 
 
-def make_card_from_person_page(page_id, page_title, compression) -> str:
-    return f"{page_id};<a href='{get_page_url(page_id, page_title)}'>{page_title}</a>;{compression}"
+def remove_newlines(string: str) -> str:
+    return string.replace('\n', '<br>')
+
+
+def make_card_from_person_page(row) -> str:
+    full_name = row.first_name.split(' ')[0] + ' ' + row.last_name
+    next_question = remove_newlines(row.next_question_to_ask_them)
+    return f"{row.id};" \
+        f"<a href='{get_page_url(row.id, row.title)}'>{full_name}</a>;" \
+        f"<b>Compression:</b> {row.compression}<br>" \
+        f"<b>Next Q:</b> {next_question}<br>" \
+        f"<b>Groups:</b> {', '.join(row.groups)}<br>" \
+        f"<b>Edited:</b> {row.edited.strftime('%-m/%-d/%y')}<br>" \
+        f"<b>Added:</b> {row.added.strftime('%-m/%-d/%y')}"
 
 
 token_v2 = "b9d79f1c69e7c498da57eba93e26d34903808c76ab90d2760d340f473db40a607c8325a393c84de178c044f9661b7cc4fe3efceadbe72b6755bf859764df46f103de466695b6673c0bd420c7a214"
@@ -42,8 +54,7 @@ for row in rows:
         # images = [x for x in row.children if isinstance(x, ImageBlock)]
         # if not any(images):
         #     continue
-        full_name = row.first_name.split(' ')[0] + ' ' + row.last_name
-        cards.append(make_card_from_person_page(row.id, full_name, row.compression))
+        cards.append(make_card_from_person_page(row))
     elif export_type == "text":
         cards.append(make_card_from_text_page(row.id, row.title))
 
@@ -53,7 +64,3 @@ filename = page.title.lower().replace(' ', '-')
 with open(f"{storage_dir}/{filename}", "w") as f:
     for card in cards:
         print(card, file=f)
-
-# row = rows[0]
-# import ipdb
-# ipdb.set_trace()
