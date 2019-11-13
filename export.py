@@ -36,18 +36,20 @@ def make_card_from_person_page(row) -> str:
         f"<b>Added:</b> {row.added.strftime('%-m/%-d/%y')}"
 
 
-token_v2 = "b9d79f1c69e7c498da57eba93e26d34903808c76ab90d2760d340f473db40a607c8325a393c84de178c044f9661b7cc4fe3efceadbe72b6755bf859764df46f103de466695b6673c0bd420c7a214"
-
 export_type = sys.argv[1]
 page_url = sys.argv[2]
 assert export_type in ["text", "people"]
 
-client = NotionClient(token_v2=token_v2)
+token_v2 = open('token_v2').read().strip()
+client = NotionClient(token_v2=token_v2, monitor=True)
 
 page = client.get_block(page_url)
 collection = client.get_collection(page.get('collection_id'))
 collection.refresh()
 rows = collection.get_rows()
+if not len(rows):
+    print("Empty rows?")
+    import ipdb; ipdb.set_trace()
 
 cards = []
 for row in rows:

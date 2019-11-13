@@ -1,2 +1,4 @@
 .idea
 venv
+token_v2
+__pycache__
