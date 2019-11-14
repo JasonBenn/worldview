@@ -1,2 +1,6 @@
 notion==0.*
 ipdb==0.*
+tqdm==4.*
+bert-serving-client==1.*
+spacy==2.*
+pandas==0.*
