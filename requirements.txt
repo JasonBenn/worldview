@@ -4,3 +4,5 @@ tqdm==4.*
 bert-serving-client==1.*
 spacy==2.*
 pandas==0.*
+umap-learn==0.3.*
+seaborn==0.9.*
