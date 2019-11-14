@@ -3,3 +3,4 @@ venv
 token_v2
 __pycache__
 scratch.py
+.env
