@@ -2,13 +2,21 @@ import os
 import sys
 
 # from notion.block import ImageBlock
+from pathlib import Path
+
+from tqdm import tqdm
 from notion.client import NotionClient
+
+from utils import to_markdown
+
+
+def clean_title(string: str) -> str:
+    return "".join([c for c in string.replace(' ', '-') if c.isalnum() or c == '-']).lower()
 
 
 def get_page_url(page_id: str, page_title: str) -> str:
-    clean_title = "".join([c for c in page_title.replace(' ', '-') if c.isalnum() or c == '-'])
-    page_url = clean_title + page_id.replace('-', '')
-    return f"notion://www.notion.so/{page_url}"
+    url = clean_title(page_title) + page_id.replace('-', '')
+    return f"notion://www.notion.so/{url}"
 
 
 def make_card_from_text_page(page_id, page_title) -> str:
@@ -38,7 +46,7 @@ def make_card_from_person_page(row) -> str:
 
 export_type = sys.argv[1]
 page_url = sys.argv[2]
-assert export_type in ["text", "people"]
+assert export_type in ["text", "people", "document"]
 
 token_v2 = open('token_v2').read().strip()
 client = NotionClient(token_v2=token_v2, monitor=True)
@@ -48,11 +56,17 @@ collection = client.get_collection(page.get('collection_id'))
 collection.refresh()
 rows = collection.get_rows()
 if not len(rows):
-    print("Empty rows?")
-    import ipdb; ipdb.set_trace()
+    rows = collection.get_rows()
+    if not len(rows):
+        print("Empty rows?")
+        sys.exit(1)
+
+storage_dir = Path("/Users/jasonbenn/.notion-to-anki")
+docs_path = storage_dir / "documents"
+os.makedirs(docs_path, exist_ok=True)
 
 cards = []
-for row in rows:
+for row in tqdm(rows):
     if export_type == "people":
         # images = [x for x in row.children if isinstance(x, ImageBlock)]
         # if not any(images):
@@ -60,10 +74,11 @@ for row in rows:
         cards.append(make_card_from_person_page(row))
     elif export_type == "text":
         cards.append(make_card_from_text_page(row.id, row.title))
+    elif export_type == "document":
+        open(docs_path / row.id, 'w').write(to_markdown(row))
 
-storage_dir = "/Users/jasonbenn/.notion-to-anki"
-os.makedirs(storage_dir, exist_ok=True)
+
 filename = page.title.lower().replace(' ', '-')
-with open(f"{storage_dir}/{filename}", "w") as f:
+with open(storage_dir/filename, "w") as f:
     for card in cards:
         print(card, file=f)

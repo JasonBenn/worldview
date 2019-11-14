@@ -1,4 +1,5 @@
 import ipdb
+from notion.block import BookmarkBlock
 from notion.block import BulletedListBlock
 from notion.block import DividerBlock
 from notion.block import HeaderBlock
@@ -15,7 +16,7 @@ from notion.collection import CollectionRowBlock
 
 def to_markdown(page: PageBlock) -> str:
     result = ""
-    result += page.title
+    result += f"# {page.title}\n"
     for child in page.children:
         if isinstance(child, TextBlock):
             result += f"{child.title}\n"
@@ -40,6 +41,8 @@ def to_markdown(page: PageBlock) -> str:
             result += f"| {child.title}\n"
         elif isinstance(child, NumberedListBlock):
             result += f"1. {child.title}\n"
+        elif isinstance(child, BookmarkBlock):
+            result += f"<BOOKMARK: {child.title}>\n"
         else:
             print(type(child))
             ipdb.set_trace()
