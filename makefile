@@ -13,5 +13,8 @@ export_thinks:
 export_all:
 	make -j 3 export_thinks export_people export_worldview
 
-export_document:
+export_documents:
 	python export_to_anki.py document https://www.notion.so/jasonbenn/d7a04baa1cea4dda983747b04ae3ddaa?v=727ed26317ec44caa4c9f2d8393a09b5
+
+vectorize_documents:
+	python vectorize.py

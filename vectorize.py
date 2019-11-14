@@ -16,7 +16,7 @@ nlp.add_pipe(nlp.create_pipe('sentencizer'))
 bc = BertClient(ip="192.168.86.176")
 
 encodings = []
-doc_titles = os.listdir(docs_path)[:2]
+doc_titles = os.listdir(docs_path)
 for doc_title in tqdm(doc_titles):
     doc = open(docs_path/doc_title).read()
     for para in re.split('\n', doc):
