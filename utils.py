@@ -1,4 +1,5 @@
 import ipdb
+import re
 from notion.block import BookmarkBlock
 from notion.block import BulletedListBlock
 from notion.block import DividerBlock
@@ -46,4 +47,15 @@ def to_markdown(page: PageBlock) -> str:
         else:
             print(type(child))
             ipdb.set_trace()
+    return result
+
+
+def asciify(text: str) -> str:
+    return re.sub(r'[^\x00-\x7f]', r'', text)
+
+
+def to_plaintext(page: PageBlock) -> str:
+    result = f"{asciify(page.title)}\n\n"
+    for child in page.children:
+        result += f"{asciify(child.title)}\n"
     return result

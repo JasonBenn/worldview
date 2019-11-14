@@ -18,3 +18,9 @@ export_documents:
 
 vectorize_documents:
 	python vectorize.py
+
+plot_umap:
+	python plot_umap.py
+
+copy_umap_json:
+	cat ~/.notion-to-anki/umaps/nieghbors_10__min_dist_0.5.json | pbcopy

@@ -1,13 +1,12 @@
 import os
 import sys
-
 # from notion.block import ImageBlock
 from pathlib import Path
 
-from tqdm import tqdm
 from notion.client import NotionClient
+from tqdm import tqdm
 
-from utils import to_markdown
+from utils import to_plaintext
 
 
 def clean_title(string: str) -> str:
@@ -75,7 +74,7 @@ for row in tqdm(rows):
     elif export_type == "text":
         cards.append(make_card_from_text_page(row.id, row.title))
     elif export_type == "document":
-        open(docs_path / row.id, 'w').write(to_markdown(row))
+        open(docs_path / row.id, 'w').write(to_plaintext(row))
 
 
 filename = page.title.lower().replace(' ', '-')
