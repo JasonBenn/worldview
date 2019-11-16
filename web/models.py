@@ -25,35 +25,43 @@ class GoodreadsEntity(BaseModel):
         abstract = True
 
 
-class Text(BaseModel):
-    text = TextField()
-    embedding = JSONField(null=True, blank=True)
-    projection = JSONField(null=True, blank=True)
-    source = ForeignKey(GoodreadsEntity, null=True, blank=True, on_delete=models.DO_NOTHING)
-
-
 class GoodreadsSeries(GoodreadsEntity):
     title = TextField()
+
+    def __str__(self):
+        return f"<GoodreadsSeries: {self.title}>"
 
 
 class GoodreadsAuthor(GoodreadsEntity):
     first_name = TextField()
     last_name = TextField(null=True, blank=True)
 
+    def __str__(self):
+        return f"<GoodreadsAuthor: {self.first_name} {self.last_name}>"
+
 
 class GoodreadsBook(GoodreadsEntity):
     title = TextField()
     series = ForeignKey(GoodreadsSeries, null=True, blank=True, on_delete=models.DO_NOTHING, related_name="books")
-    authors = ManyToManyField(GoodreadsAuthor, null=True, blank=True, related_name="books")
+    authors = ManyToManyField(GoodreadsAuthor, related_name="books")
+
+    def __str__(self):
+        return f"<GoodreadsBook: {self.title}>"
 
 
 class GoodreadsUser(GoodreadsEntity):
     first_name = TextField()
     last_name = TextField(null=True, blank=True)
 
+    def __str__(self):
+        return f"<GoodreadsUser: {self.first_name} {self.last_name}>"
+
 
 class GoodreadsShelf(GoodreadsEntity):
     books = ManyToManyField(GoodreadsBook)
+
+    def __str__(self):
+        return f"<GoodreadsShelf: {len(self.books)} books>"
 
 
 class NotionDocument(BaseModel):
@@ -61,9 +69,19 @@ class NotionDocument(BaseModel):
     title = TextField()
     url = TextField()
 
+    def __str__(self):
+        return f"<NotionDocument: {self.title}>"
 
-class SyncEvent(BaseModel):
-    # Sync to Anki?
-    # Pull from Notion?
-    # Scrape Goodreads shelf?
-    pass
+
+class Text(BaseModel):
+    text = TextField()
+    embedding = JSONField(null=True, blank=True)
+    projection = JSONField(null=True, blank=True)
+    source_author = ForeignKey(GoodreadsAuthor, null=True, blank=True, on_delete=models.DO_NOTHING)
+    source_series = ForeignKey(GoodreadsSeries, null=True, blank=True, on_delete=models.DO_NOTHING)
+    source_book = ForeignKey(GoodreadsBook, null=True, blank=True, on_delete=models.DO_NOTHING)
+    source_notion_document = ForeignKey(NotionDocument, null=True, blank=True, on_delete=models.DO_NOTHING)
+
+    def __str__(self):
+        maybe_ellipsis = "..." if len(self.text) > 25 else ""
+        return f"<Text: {self.text[:25]}{maybe_ellipsis}>"
