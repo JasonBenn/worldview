@@ -1,3 +1,6 @@
+import pickle
+from enum import Enum
+from pathlib import Path
 from urllib.parse import urlencode
 import os
 
@@ -13,7 +16,39 @@ GOODREADS_SECRET = os.getenv('GOODREADS_SECRET')
 gr_client = gr.Client(developer_key=GOODREADS_KEY)
 
 
-def get_book():
+class GoodReadsEntityType(Enum):
+    BOOK = "BOOK"
+    AUTHOR = "AUTHOR"
+    SERIES = "SERIES"
+    SHELVES = "SHELVES"
+
+    def to_path(self):
+        return self.value.lower()
+
+
+def load_entity(entity_type: GoodReadsEntityType, gr_id: str):
+    dir_path = Path('data/goodreads_api').absolute()
+    filepath = dir_path / entity_type.to_path() / gr_id
+    if filepath.exists():
+        return pickle.load(open(filepath, 'rb'))
+    else:
+        if entity_type == GoodReadsEntityType.BOOK:
+            entity = gr_client.Book.show(gr_id)
+        elif entity_type == GoodReadsEntityType.AUTHOR:
+            entity = gr_client.Author.show(gr_id)
+        elif entity_type == GoodReadsEntityType.SERIES:
+            entity = gr_client.Series.show(gr_id)
+        elif entity_type == GoodReadsEntityType.SHELVES:
+            # Shelves only make sense to list by user_id, as they don't have known IDs.
+            entity = gr_client.Shelf.list(gr_id)
+        else:
+            raise Exception
+        pickle.dump(entity, open(filepath, 'wb'))
+        return entity
+
+
+
+def parse_book(gr_id: str):
     book = gr_client.Book.show('18883652')  # Permutation City
     # book = gr_client.Book.show('1128434')  # The Witcher
     # keys_wanted = ['id', 'title', 'isbn']
@@ -34,9 +69,13 @@ def get_book():
     print(author['about'])
 
 
+# print(load_entity(GoodReadsEntityType.BOOK, "18883652"))
 user_id = "6481511"
+shelves_data = load_entity(GoodReadsEntityType.SHELVES, user_id)
+print(shelves_data)
 
-shelves_data = gr_client.Shelf.list(user_id)
+
+# shelves_data = gr_client.Shelf.list(user_id)
 shelves = shelves_data['user_shelf']
 
 for shelf in shelves:
@@ -81,4 +120,7 @@ book = datum['book']
 print(book['title'])
 print(book['description'])
 print(book['link'])
-from IPython.core.debugger import set_trace; set_trace()
+from IPython import embed; embed()
+
+
+# Where are the 3 quotes?

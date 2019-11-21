@@ -74,6 +74,9 @@ class NotionDocument(BaseModel):
 
 
 class Text(BaseModel):
+    class Meta:
+        unique_together = ('text', 'source_book', 'source_notion_document')
+
     text = TextField()
     embedding = JSONField(null=True, blank=True)
     projection = JSONField(null=True, blank=True)
