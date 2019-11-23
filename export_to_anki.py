@@ -51,14 +51,9 @@ token_v2 = open('token_v2').read().strip()
 client = NotionClient(token_v2=token_v2, monitor=True)
 
 page = client.get_block(page_url)
-collection = client.get_collection(page.get('collection_id'))
-collection.refresh()
-rows = collection.get_rows()
-if not len(rows):
-    rows = collection.get_rows()
-    if not len(rows):
-        print("Empty rows?")
-        sys.exit(1)
+rows = []
+for x in tqdm(page.views[0].get()['page_sort']):
+    rows.append(client.get_block(x))
 
 storage_dir = Path("/Users/jasonbenn/.notion-to-anki")
 docs_path = storage_dir / "documents"
