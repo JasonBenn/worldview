@@ -1,3 +1,4 @@
+from psqlextra.query import ConflictAction
 from psqlextra.util import postgres_manager
 import re
 from pathlib import Path
