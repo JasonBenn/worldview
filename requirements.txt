@@ -12,3 +12,4 @@ xmltodict==0.*
 django==2.*
 django-postgres-extra==1.*
 psycopg2==2.*
+python_dotenv==0.*

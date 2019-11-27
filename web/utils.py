@@ -1,3 +1,4 @@
+import re
 from collections import defaultdict
 from datetime import datetime
 
@@ -26,3 +27,7 @@ def clean_title(string: str) -> str:
 
 def remove_newlines(string: str) -> str:
     return string.replace('\n', '<br>')
+
+
+def asciify(text: str) -> str:
+    return re.sub(r'[^\x00-\x7f]', r'', text)

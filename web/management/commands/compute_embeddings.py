@@ -3,6 +3,7 @@ from django.core.management import BaseCommand
 from tqdm import tqdm
 
 from web.models import Text
+from web.services.notion_service.read import get_client
 
 
 def get_embedding(text: str):
@@ -16,6 +17,11 @@ class Command(BaseCommand):
     def handle(self, *args, **kwargs):
         notion_url = kwargs['notion_url']
         print(notion_url)
+        client = get_client()
+        block = client.get_block(notion_url)
+        print(block)
+
+        from IPython import embed; embed()
         need_embeddings = list(Text.objects.filter(embedding__isnull=True))
         print(f"Computing embeddings for {len(need_embeddings)} Texts.")
         for text in tqdm(need_embeddings):

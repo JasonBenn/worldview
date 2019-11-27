@@ -5,11 +5,11 @@ from pathlib import Path
 
 from tqdm import tqdm
 
-from utils import to_plaintext
-from web.notion_service.read import get_client
-from web.notion_service.read import get_db_row_urls
-from web.notion_service.read import make_card_from_person_page
-from web.notion_service.read import make_card_from_text_page
+from web.services.notion_service.read import to_plaintext
+from web.services.notion_service.read import get_client
+from web.services.notion_service.read import get_db_row_urls
+from web.services.notion_service.read import make_card_from_person_page
+from web.services.notion_service.read import make_card_from_text_page
 
 export_type = sys.argv[1]
 page_url = sys.argv[2]
