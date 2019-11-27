@@ -10,7 +10,12 @@ def get_embedding(text: str):
 
 
 class Command(BaseCommand):
-    def handle(self, *args, **options):
+    def add_arguments(self, parser):
+        parser.add_argument('notion_url')
+
+    def handle(self, *args, **kwargs):
+        notion_url = kwargs['notion_url']
+        print(notion_url)
         need_embeddings = list(Text.objects.filter(embedding__isnull=True))
         print(f"Computing embeddings for {len(need_embeddings)} Texts.")
         for text in tqdm(need_embeddings):

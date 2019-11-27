@@ -1,12 +1,7 @@
-import numpy as np
 from django.core.management import BaseCommand
 
 from web.models import Text
-from web.utils import get_similar_text_ids
-
-
-def get_embedding(text: str):
-    return np.random.random(768)
+from web.models import get_similar_text_ids
 
 
 class Command(BaseCommand):

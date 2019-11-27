@@ -33,8 +33,10 @@ copy_umap_json:
 
 # DB
 init_postgres:
-	createuser -s -P notion_to_anki
-	createdb -W -h 127.0.0.1 notion_to_anki -U notion_to_anki -p 5432
+	echo "make password worldview"
+	createuser -s -P worldview
+	createdb -W -h 127.0.0.1 worldview -U worldview -p 5432
+	./manage.py migrate
 
 psql:
 	psql postgresql://notion_to_anki:notion_to_anki@127.0.0.1:5432/notion_to_anki
