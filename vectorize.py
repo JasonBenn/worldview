@@ -3,17 +3,18 @@ import pickle
 import re
 from pathlib import Path
 
-from bert_serving.client import BertClient
 from pandas import DataFrame
 from spacy.lang.en import English
 from tqdm import tqdm
+
+from web.services.bert_service.read import get_bert_client
 
 storage_dir = Path("/Users/jasonbenn/.notion-to-anki")
 docs_path = storage_dir / "documents"
 
 nlp = English()
 nlp.add_pipe(nlp.create_pipe('sentencizer'))
-bc = BertClient(ip="192.168.86.176")
+bc = get_bert_client()
 
 encodings = []
 doc_titles = os.listdir(docs_path)

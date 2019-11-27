@@ -43,3 +43,8 @@ psql:
 
 migrate:
 	web/manage.py migrate
+
+init_bert_as_a_service:
+	echo "ssh ml-box"
+	echo "cd code/text-mapper"
+	echo "./run.sh"

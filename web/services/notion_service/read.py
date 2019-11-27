@@ -7,21 +7,16 @@ from notion.block import DividerBlock
 from notion.block import HeaderBlock
 from notion.block import NumberedListBlock
 from notion.block import PageBlock
-from notion.block import PageBlock
 from notion.block import QuoteBlock
 from notion.block import SubheaderBlock
 from notion.block import SubsubheaderBlock
 from notion.block import TextBlock
 from notion.block import TodoBlock
 from notion.block import ToggleBlock
-
 from notion.client import NotionClient
 from notion.collection import CollectionRowBlock
-from notion.collection import CollectionRowBlock
 
 from web.utils import asciify
-from web.utils import asciify
-
 from web.utils import clean_title
 from web.utils import remove_newlines
 
@@ -52,7 +47,7 @@ def make_card_from_person_page(row) -> str:
         f"<b>Added:</b> {row.added.strftime('%-m/%-d/%y')}"
 
 
-def get_client() -> NotionClient:
+def get_notion_client() -> NotionClient:
     token_v2 = open('token_v2').read().strip()
     return NotionClient(token_v2=token_v2, monitor=True)
 
