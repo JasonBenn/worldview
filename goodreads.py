@@ -1,6 +1,3 @@
-import pickle
-from enum import Enum
-from pathlib import Path
 from urllib.parse import urlencode
 import os
 
@@ -10,42 +7,13 @@ import oauth2 as oauth
 from dotenv import load_dotenv
 import xmltodict
 
+from web.services.goodreads_service.read import load_entity
+from web.services.goodreads_service.types import GoodReadsEntityType
+
 load_dotenv()
 GOODREADS_KEY = os.getenv('GOODREADS_KEY')
 GOODREADS_SECRET = os.getenv('GOODREADS_SECRET')
 gr_client = gr.Client(developer_key=GOODREADS_KEY)
-
-
-class GoodReadsEntityType(Enum):
-    BOOK = "BOOK"
-    AUTHOR = "AUTHOR"
-    SERIES = "SERIES"
-    SHELVES = "SHELVES"
-
-    def to_path(self):
-        return self.value.lower()
-
-
-def load_entity(entity_type: GoodReadsEntityType, gr_id: str):
-    dir_path = Path('data/goodreads_api').absolute()
-    filepath = dir_path / entity_type.to_path() / gr_id
-    if filepath.exists():
-        return pickle.load(open(filepath, 'rb'))
-    else:
-        if entity_type == GoodReadsEntityType.BOOK:
-            entity = gr_client.Book.show(gr_id)
-        elif entity_type == GoodReadsEntityType.AUTHOR:
-            entity = gr_client.Author.show(gr_id)
-        elif entity_type == GoodReadsEntityType.SERIES:
-            entity = gr_client.Series.show(gr_id)
-        elif entity_type == GoodReadsEntityType.SHELVES:
-            # Shelves only make sense to list by user_id, as they don't have known IDs.
-            entity = gr_client.Shelf.list(gr_id)
-        else:
-            raise Exception
-        pickle.dump(entity, open(filepath, 'wb'))
-        return entity
-
 
 
 def parse_book(gr_id: str):

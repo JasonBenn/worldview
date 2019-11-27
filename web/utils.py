@@ -18,3 +18,11 @@ def now() -> datetime:
 
 def get_embedding(text: str):
     return np.random.random(768)
+
+
+def clean_title(string: str) -> str:
+    return "".join([c for c in string.replace(' ', '-') if c.isalnum() or c == '-']).lower()
+
+
+def remove_newlines(string: str) -> str:
+    return string.replace('\n', '<br>')
