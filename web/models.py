@@ -6,7 +6,12 @@ from typing import Tuple
 import numpy as np
 from django.contrib.postgres.fields import JSONField
 from django.db import models
-from django.db.models import IntegerField, TextField, ForeignKey, Model, ManyToManyField, DateTimeField
+from django.db.models import DateTimeField
+from django.db.models import ForeignKey
+from django.db.models import IntegerField
+from django.db.models import ManyToManyField
+from django.db.models import Model
+from django.db.models import TextField
 
 from web.utils import get_embedding
 from web.utils import now
@@ -72,12 +77,13 @@ class GoodreadsShelf(GoodreadsEntity):
 
 
 class NotionDocument(BaseModel):
-    notion_id = TextField()
-    title = TextField()
+    notion_id = TextField(null=True, blank=True)
+    title = TextField(null=True, blank=True)
     url = TextField()
 
     def __str__(self):
-        return f"<NotionDocument: {self.title}>"
+        content = self.title or "[not yet scraped] " + self.url
+        return f"<NotionDocument: {content}>"
 
 
 class Text(BaseModel):
