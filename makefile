@@ -32,12 +32,18 @@ copy_umap_json:
 	cat ~/.notion-to-anki/umaps/nieghbors_10__min_dist_0.5.json | pbcopy
 
 # DB
-init_postgres:
-	echo "make password worldview"
+initdb:
 	createuser -s -P worldview
+
+
+createdb:
+	echo "make password worldview"
 	createdb -W -h 127.0.0.1 worldview -U worldview -p 5432
 	./manage.py migrate
 	echo "from django.contrib.auth import get_user_model; User = get_user_model(); User.objects.create_superuser('admin', 'nah@nah.com', 'admin')" | python manage.py shell
+
+dropdb:
+	dropdb worldview
 
 
 psql:

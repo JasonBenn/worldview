@@ -1,6 +1,7 @@
 from django.contrib import admin
 
 from web.models import NotionDocument
+from web.models import Text
 from web.services.notion_service.write import scrape
 from django.utils.translation import gettext_lazy as _
 
@@ -18,7 +19,7 @@ def toggle_bookmark(modeladmin, request, queryset):
 
 
 scrape_documents.short_description = "Scrape Notion documents"
-toggle_bookmark.short_description = "Bookmark"
+toggle_bookmark.short_description = "Toggle bookmark"
 
 
 
@@ -35,7 +36,8 @@ class ParentNotionDocumentListFilter(admin.SimpleListFilter):
         provided in the query string and retrievable via
         `self.value()`.
         """
-        return queryset.filter(parent_notion_document_id=self.value())
+        if self.value():
+            return queryset.filter(parent_notion_document_id=self.value())
 
 
 class NotionDocumentAdmin(admin.ModelAdmin):
@@ -46,4 +48,10 @@ class NotionDocumentAdmin(admin.ModelAdmin):
     list_filter = ("bookmarked", "updated_at", ParentNotionDocumentListFilter)
 
 
+class TextAdmin(admin.ModelAdmin):
+    list_display = ["text", "source_author", "source_series", "source_book", "source_notion_document"]
+    list_filter = ("created_at", "updated_at")
+
+
 admin.site.register(NotionDocument, NotionDocumentAdmin)
+admin.site.register(Text, TextAdmin)

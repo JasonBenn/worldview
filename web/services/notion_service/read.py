@@ -1,8 +1,12 @@
+from operator import itemgetter
 from typing import List
+from typing import Union
 
 import ipdb
 from notion.block import BookmarkBlock
 from notion.block import BulletedListBlock
+from notion.block import CollectionViewBlock
+from notion.block import CollectionViewPageBlock
 from notion.block import DividerBlock
 from notion.block import HeaderBlock
 from notion.block import ImageBlock
@@ -16,6 +20,7 @@ from notion.block import TodoBlock
 from notion.block import ToggleBlock
 from notion.client import NotionClient
 from notion.collection import CollectionRowBlock
+from notion.collection import TableView
 
 from web.utils import asciify
 from web.utils import clean_title
@@ -53,8 +58,10 @@ def get_notion_client() -> NotionClient:
     return NotionClient(token_v2=token_v2, monitor=True)
 
 
-def get_db_row_ids(block: CollectionRowBlock) -> List[str]:
-    return block.views[0].get()['page_sort']
+def get_db_row_ids(block: Union[CollectionViewPageBlock, CollectionViewBlock]) -> List[str]:
+    views_by_num_items = {view: len(view.get()['page_sort']) for view in block.views if ('page_sort' in view.get())}
+    view, num_items = max(views_by_num_items.items(), key=itemgetter(1))
+    return view.get()['page_sort']
 
 
 def to_markdown(page: PageBlock) -> str:

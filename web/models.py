@@ -12,7 +12,6 @@ from django.db.models import ForeignKey
 from django.db.models import IntegerField
 from django.db.models import ManyToManyField
 from django.db.models import Model
-from django.db.models import SET_NULL
 from django.db.models import TextField
 
 from web.utils import get_embedding
@@ -79,8 +78,8 @@ class GoodreadsShelf(GoodreadsEntity):
 
 
 class NotionDocument(BaseModel):
-    notion_id = TextField(null=True, blank=True)
-    parent_notion_document = ForeignKey("NotionDocument", on_delete=SET_NULL, related_name="parent_document", null=True, blank=True)
+    notion_id = TextField(null=True, blank=True, unique=True)
+    parent_notion_document = ForeignKey("NotionDocument", on_delete=models.CASCADE, related_name="parent_document", null=True, blank=True)
     title = TextField(null=True, blank=True)
     url = TextField()
     bookmarked = BooleanField(default=False)
@@ -100,7 +99,7 @@ class Text(BaseModel):
         unique_together = ('text', 'source_book', 'source_notion_document')
 
     text = TextField()
-    embedding = JSONField(null=True, blank=True)
+    embedding = NumpyArrayField(null=True, blank=True)
     projection = JSONField(null=True, blank=True)
     source_author = ForeignKey(GoodreadsAuthor, null=True, blank=True, on_delete=models.CASCADE)
     source_series = ForeignKey(GoodreadsSeries, null=True, blank=True, on_delete=models.CASCADE)
