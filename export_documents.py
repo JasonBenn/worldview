@@ -7,7 +7,7 @@ from tqdm import tqdm
 
 from web.services.notion_service.read import to_plaintext
 from web.services.notion_service.read import get_notion_client
-from web.services.notion_service.read import get_db_row_urls
+from web.services.notion_service.read import get_db_row_ids
 from web.services.notion_service.read import make_card_from_person_page
 from web.services.notion_service.read import make_card_from_text_page
 
@@ -20,7 +20,7 @@ client = get_notion_client()
 page = client.get_block(page_url)
 rows = []
 
-for x in tqdm(get_db_row_urls(page)):
+for x in tqdm(get_db_row_ids(page)):
     rows.append(client.get_block(x))
 
 storage_dir = Path("/Users/jasonbenn/.notion-to-anki")

@@ -6,11 +6,13 @@ from typing import Tuple
 import numpy as np
 from django.contrib.postgres.fields import JSONField
 from django.db import models
+from django.db.models import BooleanField
 from django.db.models import DateTimeField
 from django.db.models import ForeignKey
 from django.db.models import IntegerField
 from django.db.models import ManyToManyField
 from django.db.models import Model
+from django.db.models import SET_NULL
 from django.db.models import TextField
 
 from web.utils import get_embedding
@@ -78,12 +80,19 @@ class GoodreadsShelf(GoodreadsEntity):
 
 class NotionDocument(BaseModel):
     notion_id = TextField(null=True, blank=True)
+    parent_notion_document = ForeignKey("NotionDocument", on_delete=SET_NULL, related_name="parent_document", null=True, blank=True)
     title = TextField(null=True, blank=True)
     url = TextField()
+    bookmarked = BooleanField(default=False)
 
     def __str__(self):
-        content = self.title or "[not yet scraped] " + self.url
-        return f"<NotionDocument: {content}>"
+        if self.title is None:
+            title = "[not yet scraped] " + self.url
+        elif self.title == "":
+            title = "[empty title]"
+        else:
+            title = self.title
+        return f"<NotionDocument: {title}>"
 
 
 class Text(BaseModel):
@@ -93,10 +102,10 @@ class Text(BaseModel):
     text = TextField()
     embedding = JSONField(null=True, blank=True)
     projection = JSONField(null=True, blank=True)
-    source_author = ForeignKey(GoodreadsAuthor, null=True, blank=True, on_delete=models.DO_NOTHING)
-    source_series = ForeignKey(GoodreadsSeries, null=True, blank=True, on_delete=models.DO_NOTHING)
-    source_book = ForeignKey(GoodreadsBook, null=True, blank=True, on_delete=models.DO_NOTHING)
-    source_notion_document = ForeignKey(NotionDocument, null=True, blank=True, on_delete=models.DO_NOTHING)
+    source_author = ForeignKey(GoodreadsAuthor, null=True, blank=True, on_delete=models.CASCADE)
+    source_series = ForeignKey(GoodreadsSeries, null=True, blank=True, on_delete=models.CASCADE)
+    source_book = ForeignKey(GoodreadsBook, null=True, blank=True, on_delete=models.CASCADE)
+    source_notion_document = ForeignKey(NotionDocument, null=True, blank=True, on_delete=models.CASCADE)
 
     def __str__(self):
         maybe_ellipsis = "..." if len(self.text) > 25 else ""

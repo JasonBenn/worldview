@@ -1,6 +1,7 @@
 import re
 from collections import defaultdict
 from datetime import datetime
+from typing import List
 
 import numpy as np
 from django.utils import timezone
@@ -31,3 +32,13 @@ def remove_newlines(string: str) -> str:
 
 def asciify(text: str) -> str:
     return re.sub(r'[^\x00-\x7f]', r'', text)
+
+
+def get_text_chunks(text: str) -> List[str]:
+    chunks = []
+    # TODO: cut on token boundary: https://spacy.io/usage/linguistic-features#retokenization
+    for i in range(len(text) // 512 + 1):
+        start_index = i * 512
+        end_index = (i+1) * 512
+        chunks.append(text[start_index:end_index])
+    return chunks

@@ -5,6 +5,7 @@ from notion.block import BookmarkBlock
 from notion.block import BulletedListBlock
 from notion.block import DividerBlock
 from notion.block import HeaderBlock
+from notion.block import ImageBlock
 from notion.block import NumberedListBlock
 from notion.block import PageBlock
 from notion.block import QuoteBlock
@@ -52,7 +53,7 @@ def get_notion_client() -> NotionClient:
     return NotionClient(token_v2=token_v2, monitor=True)
 
 
-def get_db_row_urls(block: CollectionRowBlock) -> List[str]:
+def get_db_row_ids(block: CollectionRowBlock) -> List[str]:
     return block.views[0].get()['page_sort']
 
 
@@ -94,5 +95,7 @@ def to_markdown(page: PageBlock) -> str:
 def to_plaintext(page: PageBlock) -> str:
     result = f"{asciify(page.title)}\n\n"
     for child in page.children:
+        if isinstance(child, (ImageBlock, DividerBlock)):
+            continue
         result += f"{asciify(child.title)}\n"
     return result
