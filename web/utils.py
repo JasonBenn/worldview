@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import List
 
 import numpy as np
+from django.contrib.postgres.fields import ArrayField
 from django.utils import timezone
 
 

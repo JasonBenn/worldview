@@ -65,7 +65,7 @@ def make_texts(notion_client: NotionClient, bert_client: BertClient, notion_id: 
         text_records.append({
             "text": text_chunk,
             "source_notion_document": child_doc,
-            "embedding": embedding
+            "embedding": embedding.tolist()
         })
 
     with postgres_manager(Text) as manager:

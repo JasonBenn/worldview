@@ -39,7 +39,6 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     "psqlextra",
-    "django_numpy",
 ]
 
 MIDDLEWARE = [

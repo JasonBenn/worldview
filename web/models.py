@@ -99,7 +99,7 @@ class Text(BaseModel):
         unique_together = ('text', 'source_book', 'source_notion_document')
 
     text = TextField()
-    embedding = NumpyArrayField(null=True, blank=True)
+    embedding = JSONField(null=True, blank=True)
     projection = JSONField(null=True, blank=True)
     source_author = ForeignKey(GoodreadsAuthor, null=True, blank=True, on_delete=models.CASCADE)
     source_series = ForeignKey(GoodreadsSeries, null=True, blank=True, on_delete=models.CASCADE)
