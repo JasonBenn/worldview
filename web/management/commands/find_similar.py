@@ -4,6 +4,7 @@ from operator import itemgetter
 import numpy as np
 from django.core.management import BaseCommand
 
+from web.models import NotionDocument
 from web.models import Text
 from web.services.bert_service.read import get_bert_client
 from web.services.notion_service.read import get_notion_client
@@ -31,9 +32,9 @@ class Command(BaseCommand):
         compute_similarity = partial(cosine_distance, document_embedding)
 
         print("Finding similar")
-        relevant_texts = Text.objects\
+        relevant_texts = NotionDocument.objects\
             .filter(embedding__isnull=False)\
-            .exclude(source_notion_document__parent_notion_document__title="People")\
+            .exclude(parent_notion_document__title="People")\
             .values('id', 'embedding')
         embeddings = {x['id']: x['embedding'] for x in relevant_texts}
         similarities = {text_id: compute_similarity(embedding) for text_id, embedding in embeddings.items()}
@@ -45,16 +46,16 @@ class Command(BaseCommand):
 
         # starting_index = len(ids) - 5
         starting_index = 0
-        most_similar_text = Text.objects\
+        most_similar_text = NotionDocument.objects\
             .filter(id__in=ids[:5])\
-            .values('text', 'source_notion_document__title', 'source_notion_document__parent_notion_document__title')
+            .values('title', 'parent_notion_document__title')
 
         for i, similar_text in enumerate(most_similar_text):
             print('-------------------')
             print(f'similarity: {similarities[(starting_index + i)]:.3f}')
             print()
-            parent_title = similar_text['source_notion_document__parent_notion_document__title']
-            source_title = similar_text['source_notion_document__title']
+            parent_title = similar_text['parent_notion_document__title']
+            source_title = similar_text['title']
             title = f"{parent_title} > {source_title}" if parent_title else source_title
             print('#', title)
-            print(similar_text['text'])
+            # print(similar_text['text'])
