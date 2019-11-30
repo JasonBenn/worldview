@@ -1,9 +1,3 @@
-from functools import partial
-from operator import itemgetter
-from typing import List
-from typing import Tuple
-
-import numpy as np
 from django.contrib.postgres.fields import JSONField
 from django.db import models
 from django.db.models import BooleanField
@@ -14,7 +8,6 @@ from django.db.models import ManyToManyField
 from django.db.models import Model
 from django.db.models import TextField
 
-from web.utils import get_embedding
 from web.utils import now
 
 
@@ -83,6 +76,7 @@ class NotionDocument(BaseModel):
     title = TextField(null=True, blank=True)
     url = TextField()
     bookmarked = BooleanField(default=False)
+    embedding = JSONField(null=True, blank=True)
 
     def __str__(self):
         if self.title is None:
@@ -109,13 +103,3 @@ class Text(BaseModel):
     def __str__(self):
         maybe_ellipsis = "..." if len(self.text) > 25 else ""
         return f"<Text: {self.text[:25]}{maybe_ellipsis}>"
-
-
-def get_similar_text_ids(example: str) -> List[Tuple[int, float]]:
-    compute_similarity = partial(np.dot, get_embedding(example))
-    embeddings = {x['id']: x['embedding'] for x in
-                  Text.objects.filter(embedding__isnull=False).values('id', 'embedding')}
-    similarities = {text_id: compute_similarity(embedding) for text_id, embedding in embeddings.items()}
-    # TODO: get anything more similar than some sensible threshold
-    top_similar_ids = sorted(similarities.items(), key=itemgetter(1), reverse=True)[:5]
-    return top_similar_ids
