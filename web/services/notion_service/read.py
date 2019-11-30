@@ -20,11 +20,11 @@ from notion.block import TodoBlock
 from notion.block import ToggleBlock
 from notion.client import NotionClient
 from notion.collection import CollectionRowBlock
-from notion.collection import TableView
 
 from web.utils import asciify
 from web.utils import clean_title
 from web.utils import remove_newlines
+from web.utils import timeout
 
 
 def get_page_url(page_id: str, page_title: str) -> str:
@@ -53,6 +53,7 @@ def make_card_from_person_page(row) -> str:
         f"<b>Added:</b> {row.added.strftime('%-m/%-d/%y')}"
 
 
+@timeout(3)
 def get_notion_client() -> NotionClient:
     token_v2 = open('token_v2').read().strip()
     return NotionClient(token_v2=token_v2, monitor=True)
