@@ -1,51 +1,54 @@
 from django.contrib import admin
-
-from web.models import NotionDocument
-from web.models import Text
-from web.services.notion_service.write import scrape
 from django.utils.translation import gettext_lazy as _
 
+from web.models import NotionDatabase
+from web.models import NotionDocument
+from web.models import Text
+from web.services.notion_service.read import get_notion_client
+from web.services.notion_service.write import scrape_children
+from web.services.notion_service.write import scrape_self
 
-def scrape_documents(modeladmin, request, queryset):
+
+def do_scrape_self(modeladmin, request, queryset):
     for doc in queryset:
-        print(doc)
-        scrape(doc)
+        scrape_self(doc)
 
 
-def toggle_bookmark(modeladmin, request, queryset):
-    for doc in queryset:
-        doc.bookmarked = not doc.bookmarked
-        doc.save()
+def do_scrape_children(modeladmin, request, queryset):
+    notion_client = get_notion_client()
+    for db in queryset:
+        scrape_children(db)
 
 
-scrape_documents.short_description = "Scrape Notion documents"
-toggle_bookmark.short_description = "Toggle bookmark"
-
+do_scrape_self.short_description = "Scrape self"
+do_scrape_children.short_description = "Scrape self, children"
 
 
 class ParentNotionDocumentListFilter(admin.SimpleListFilter):
-    title = _("parent")
-    parameter_name = "parent_notion_document"
+    title = _("parent_database")
+    parameter_name = "parent_database"
 
     def lookups(self, request, model_admin):
-        return [(x.id, x.title) for x in (NotionDocument.objects.filter(bookmarked=True))]
+        return [(x.id, x.title) for x in (NotionDatabase.objects.all())]
 
     def queryset(self, request, queryset):
-        """
-        Returns the filtered queryset based on the value
-        provided in the query string and retrievable via
-        `self.value()`.
-        """
         if self.value():
-            return queryset.filter(parent_notion_document_id=self.value())
+            return queryset.filter(parent_database_id=self.value())
+
+
+class NotionDatabaseAdmin(admin.ModelAdmin):
+    ordering = ("-updated_at",)
+    list_display = ["title", "updated_at"]
+    exclude = ("title", "notion_id")
+    actions = [do_scrape_children, do_scrape_self]
+    list_filter = ("updated_at",)
 
 
 class NotionDocumentAdmin(admin.ModelAdmin):
     ordering = ("-updated_at",)
-    list_display = ["title", "bookmarked", "parent_notion_document", "updated_at"]
-    exclude = ("title", "notion_id", "parent_notion_document")
-    actions = [scrape_documents, toggle_bookmark]
-    list_filter = ("bookmarked", "updated_at", ParentNotionDocumentListFilter)
+    list_display = ["title", "parent_database", "updated_at"]
+    actions = [do_scrape_self]
+    list_filter = (ParentNotionDocumentListFilter, "updated_at")
 
 
 class TextAdmin(admin.ModelAdmin):
@@ -53,5 +56,6 @@ class TextAdmin(admin.ModelAdmin):
     list_filter = ("created_at", "updated_at")
 
 
+admin.site.register(NotionDatabase, NotionDatabaseAdmin)
 admin.site.register(NotionDocument, NotionDocumentAdmin)
 admin.site.register(Text, TextAdmin)

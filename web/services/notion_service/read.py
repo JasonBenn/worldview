@@ -1,10 +1,12 @@
 from operator import itemgetter
+from typing import Dict
 from typing import List
 from typing import Union
 
 import ipdb
 from notion.block import BookmarkBlock
 from notion.block import BulletedListBlock
+from notion.block import CodeBlock
 from notion.block import CollectionViewBlock
 from notion.block import CollectionViewPageBlock
 from notion.block import DividerBlock
@@ -19,7 +21,9 @@ from notion.block import TextBlock
 from notion.block import TodoBlock
 from notion.block import ToggleBlock
 from notion.client import NotionClient
+from notion.collection import Collection
 from notion.collection import CollectionRowBlock
+from notion.collection import CollectionView
 
 from web.utils import asciify
 from web.utils import clean_title
@@ -53,10 +57,17 @@ def make_card_from_person_page(row) -> str:
         f"<b>Added:</b> {row.added.strftime('%-m/%-d/%y')}"
 
 
+NOTION_CLIENT_MEMORY_CACHE = None
+
+
 @timeout(3)
 def get_notion_client() -> NotionClient:
-    token_v2 = open('token_v2').read().strip()
-    return NotionClient(token_v2=token_v2, monitor=True)
+    global NOTION_CLIENT_MEMORY_CACHE
+    if NOTION_CLIENT_MEMORY_CACHE is None:
+        token_v2 = open('token_v2').read().strip()
+        client = NotionClient(token_v2=token_v2, monitor=True)
+        NOTION_CLIENT_MEMORY_CACHE = client
+    return NOTION_CLIENT_MEMORY_CACHE
 
 
 def get_db_row_ids(block: Union[CollectionViewPageBlock, CollectionViewBlock]) -> List[str]:
@@ -94,6 +105,10 @@ def to_markdown(page: PageBlock) -> str:
             result += f"1. {child.title}\n"
         elif isinstance(child, BookmarkBlock):
             result += f"<BOOKMARK: {child.title}>\n"
+        elif isinstance(child, CodeBlock):
+            result += f"```child.title```"
+        elif child.type == "table_of_contents":
+            continue
         else:
             print(type(child))
             ipdb.set_trace()
@@ -105,5 +120,20 @@ def to_plaintext(page: PageBlock) -> str:
     for child in page.children:
         if isinstance(child, (ImageBlock, DividerBlock)):
             continue
-        result += f"{asciify(child.title)}\n"
+        try:
+            result += f"{asciify(child.title)}\n"
+        except AttributeError:
+            print(type(child))
+            ipdb.set_trace()
     return result
+
+
+def get_schema(block: Union[CollectionView, CollectionViewBlock, Collection]) -> List[Dict]:
+    if isinstance(block, (CollectionView, CollectionViewBlock)):
+        collection = block.collection
+    elif isinstance(block, Collection):
+        collection = block
+    else:
+        raise ValueError("Unknown type")
+
+    return collection.get_schema_properties()

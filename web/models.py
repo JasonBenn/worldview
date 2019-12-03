@@ -1,4 +1,7 @@
+import re
+
 from django.contrib.postgres.fields import JSONField
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import BooleanField
 from django.db.models import DateTimeField
@@ -70,12 +73,38 @@ class GoodreadsShelf(GoodreadsEntity):
         return f"<GoodreadsShelf: {len(self.books)} books>"
 
 
-class NotionDocument(BaseModel):
-    notion_id = TextField(null=True, blank=True, unique=True)
-    parent_notion_document = ForeignKey("NotionDocument", on_delete=models.CASCADE, related_name="parent_document", null=True, blank=True)
-    title = TextField(null=True, blank=True)
+class NotionDatabase(BaseModel):
     url = TextField()
-    bookmarked = BooleanField(default=False)
+    notion_id = TextField(null=True, blank=True, unique=True)
+    title = TextField(null=True, blank=True)
+    schema = JSONField(null=True, blank=True)
+    anki_front_html_template = TextField(null=True, blank=True)
+    anki_back_html_template = TextField(null=True, blank=True)
+
+    def clean(self):
+        if not self.schema or not (self.anki_front_html_template or self.anki_back_html_template):
+            return True
+        valid_properties = {x['slug'] for x in self.schema}
+        for label, template in {"front": self.anki_front_html_template, "back": self.anki_back_html_template}.items():
+            used_properties = set(re.findall("{{([\w_]+)}}", template or ""))
+            if not all(x in valid_properties for x in used_properties):
+                raise ValidationError(f"Anki {label} format is invalid! Can't use: {used_properties - valid_properties}")
+
+    def __str__(self):
+        if self.title is None:
+            title = "[not yet scraped] " + self.url
+        elif self.title == "":
+            title = "[empty title]"
+        else:
+            title = self.title
+        return f"<NotionDatabase: {title}>"
+
+
+class NotionDocument(BaseModel):
+    url = TextField()
+    notion_id = TextField(null=True, blank=True, unique=True)
+    parent_database = ForeignKey(NotionDatabase, on_delete=models.CASCADE)
+    title = TextField(null=True, blank=True)
     embedding = JSONField(null=True, blank=True)
 
     def __str__(self):
