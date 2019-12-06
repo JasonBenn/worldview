@@ -73,18 +73,35 @@ class GoodreadsShelf(GoodreadsEntity):
         return f"<GoodreadsShelf: {len(self.books)} books>"
 
 
+SPECIAL_PROPERTIES = {
+    "text": ...,
+    "url": ...,
+    "title": ...,
+    "link": ...,
+}
+
+
 class NotionDatabase(BaseModel):
-    url = TextField()
+    url = TextField(help_text="<strong>Required.</strong>")
     notion_id = TextField(null=True, blank=True, unique=True)
     title = TextField(null=True, blank=True)
-    schema = JSONField(null=True, blank=True)
-    anki_front_html_template = TextField(null=True, blank=True)
-    anki_back_html_template = TextField(null=True, blank=True)
+    schema = JSONField(null=True, blank=True, help_text="<strong>Do not fill.</strong> This field is automatically populated by the 'scrape self' action on the Databases overview page.")
+    anki_front_html_template = TextField(null=True, blank=True, help_text="""\
+    <strong>Prerequisite</strong>: "Schema" field must be populated.<br><br>
+    These templates are used to create an Anki card for each record in this database. The syntax is HTML plus Notion database properties as "slugs" (the property name, but lower cased and snake cased). Slugs should also be surrounded by double curly braces.<br>
+    See Schema JSON above for valid slugs (you'll need to scrape this DB first).<br>
+    Several special properties are also valid slugs: <code>{{text}}</code> (the full contents of the note), <code>{{url}}</code> (the Notion URL of the note), <code>{{title}}</code>, and <code>{{link}}</code> (a shortcut for <code>&lt;a href="{{url}}&gt;{{title}}&lt;/a&gt;</code>").<br><br>
+    Example: <code>&lt;div&gt;{{link}}&lt;br&gt;{{created_at}}&lt;/div&gt;</code>
+    """)
+    anki_back_html_template = TextField(null=True, blank=True, help_text="Same syntax as above.")
 
     def clean(self):
-        if not self.schema or not (self.anki_front_html_template or self.anki_back_html_template):
+        has_template = self.anki_front_html_template or self.anki_back_html_template
+        if not has_template:
             return True
-        valid_properties = {x['slug'] for x in self.schema}
+        if not self.schema and has_template:
+            raise ValidationError("Can't ensure a template is valid until after the DB's schema has been scraped! Enter just the URL, go back to the main page, and choose the scrape self option.")
+        valid_properties = {x['slug'] for x in self.schema} | set(SPECIAL_PROPERTIES.keys())
         for label, template in {"front": self.anki_front_html_template, "back": self.anki_back_html_template}.items():
             used_properties = set(re.findall("{{([\w_]+)}}", template or ""))
             if not all(x in valid_properties for x in used_properties):

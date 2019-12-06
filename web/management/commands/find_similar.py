@@ -5,7 +5,6 @@ import numpy as np
 from django.core.management import BaseCommand
 
 from web.models import NotionDocument
-from web.models import Text
 from web.services.bert_service.read import get_bert_client
 from web.services.notion_service.read import get_notion_client
 from web.services.notion_service.read import to_plaintext
