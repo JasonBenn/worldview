@@ -136,8 +136,12 @@ def to_html(page: PageBlock) -> str:
             result += f"<code>child.title</code>"
         elif isinstance(child, EmbedBlock):
             result += f"<div>EMBED: {child.display_source}</div>"
-            raise ValueError("Embed block not implemented")
-            # import ipdb; ipdb.set_trace()
+            # raise ValueError("Embed block not implemented")
+            import ipdb; ipdb.set_trace()
+        elif isinstance(child, ImageBlock):
+            print("IN IMAGE BLCOK??")
+            url = child.get('properties').get('source')[0][0]
+            result += f"<img src='{url}'>"
         elif child.type == "table_of_contents":
             continue
         else:

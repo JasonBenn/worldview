@@ -12,7 +12,7 @@ from web.models import NotionDatabase
 from web.models import Text
 from web.services.bert_service.read import get_bert_client
 from web.services.notion_service.read import *
-from web.utils import get_text_chunks
+from web.utils import get_text_chunks, now
 
 
 def scrape_self(doc: Union[NotionDatabase, NotionDocument]):
@@ -96,6 +96,8 @@ def export_db_to_anki(db: NotionDatabase):
     filepath = settings.BASE_DOCUMENT_DIR / clean_title(db.title)
     with open(filepath, "w") as f:
         print("\n".join(card_htmls), file=f)
+    db.updated_at = now()
+    db.save()
 
 
 def export_to_anki(doc: NotionDocument):
@@ -106,3 +108,5 @@ def export_to_anki(doc: NotionDocument):
     with open(filepath, "w") as f:
         print(card_html, file=f)
     print(filepath)
+    doc.updated_at = now()
+    doc.save()
