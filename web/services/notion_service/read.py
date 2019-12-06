@@ -2,9 +2,12 @@ from operator import itemgetter
 from typing import Dict
 from typing import List
 from typing import Union
+from uuid import uuid4
+
+import attr
 
 import ipdb
-from notion.block import BookmarkBlock
+from notion.block import BookmarkBlock, EmbedBlock
 from notion.block import BulletedListBlock
 from notion.block import CodeBlock
 from notion.block import CollectionViewBlock
@@ -27,34 +30,12 @@ from notion.collection import CollectionView
 
 from web.utils import asciify
 from web.utils import clean_title
-from web.utils import remove_newlines
 from web.utils import timeout
 
 
 def get_page_url(page_id: str, page_title: str) -> str:
     url = clean_title(page_title) + page_id.replace('-', '')
     return f"notion://www.notion.so/{url}"
-
-
-def make_card_from_text_page(page_id, page_title) -> str:
-    return f"{page_id};<a href='{get_page_url(page_id, page_title)}'>{page_title}</a>;"
-
-
-def make_image_card_from_page(page_id, page_title, image_url, compression) -> str:
-    return f"{page_id};<img src='{image_url}'>;<a href='{get_page_url(page_id, page_title)}'>{page_title}</a><br><p>{compression}</p>"
-
-
-def make_card_from_person_page(row) -> str:
-    full_name = row.first_name.split(' ')[0] + ' ' + row.last_name
-    next_question = remove_newlines(row.next_question_to_ask_them)
-    return f"{row.id};" \
-        f"<a href='{get_page_url(row.id, row.title)}'>{full_name}</a>;" \
-        f"<b>Compression:</b> {row.compression}<br>" \
-        f"<b>Next Q:</b> {next_question}<br>" \
-        f"<b>Groups:</b> {', '.join(row.groups)}<br>" \
-        f"<b>Location:</b> {', '.join(row.location)}<br>" \
-        f"<b>Edited:</b> {row.edited.strftime('%-m/%-d/%y')}<br>" \
-        f"<b>Added:</b> {row.added.strftime('%-m/%-d/%y')}"
 
 
 NOTION_CLIENT_MEMORY_CACHE = None
@@ -103,8 +84,8 @@ def to_markdown(page: PageBlock) -> str:
             result += f"| {child.title}\n"
         elif isinstance(child, NumberedListBlock):
             result += f"1. {child.title}\n"
-        elif isinstance(child, BookmarkBlock):
-            result += f"<BOOKMARK: {child.title}>\n"
+        elif isinstance(child, EmbedBlock):
+            result += f"<EMBED: {child.display_source}>\n"
         elif isinstance(child, CodeBlock):
             result += f"```child.title```"
         elif child.type == "table_of_contents":
@@ -113,6 +94,65 @@ def to_markdown(page: PageBlock) -> str:
             print(type(child))
             ipdb.set_trace()
     return result
+
+
+@attr.s
+class SinglyNestedBlock:
+    notion_id: str = attr.ib()
+
+
+def to_html(page: PageBlock) -> str:
+    notion_client = get_notion_client()
+    result = "<div style='text-align: left'>"
+    children = list(page.children)
+    for i, child in enumerate(children):
+        if isinstance(child, TextBlock):
+            title = child.title
+            if "‣" in title:
+                title_pieces = child.get('properties')['title']
+                link_ids = [x[1][0][1] for x in title_pieces if x[0] == "‣" and x[1][0][0] == 'p']
+                for link_id in link_ids:
+                    linked_doc = notion_client.get_block(link_id)
+                    linked_doc_url = get_page_url(linked_doc.id, linked_doc.title)
+                    title = title.replace("‣", f"<a href='{linked_doc_url}'>{linked_doc.title}</a>", 1)
+            result += f"<p>{title}</p>"
+        elif isinstance(child, TodoBlock):
+            checked = "checked" if child.checked else ""
+            result += f"<div><label>{child.title}<input type='checkbox' {checked}'></label></div>"
+        elif isinstance(child, (CollectionRowBlock, BookmarkBlock)):
+            result += f"<div><a href='{get_page_url(child.id, child.title)}'>{child.title}></a></div>"
+        elif isinstance(child, DividerBlock):
+            result += f"<br/>"
+        elif isinstance(child, HeaderBlock):
+            result += f"<h1>{child.title}</h1>"
+        elif isinstance(child, SubheaderBlock):
+            result += f"<h2>{child.title}</h2>"
+        elif isinstance(child, SubsubheaderBlock):
+            result += f"<h3>{child.title}</h3>"
+        elif isinstance(child, BulletedListBlock):
+            result += f"<div>* {child.title}</div>"
+        elif isinstance(child, ToggleBlock):
+            result += f"<div>> {child.title}</div>"
+        elif isinstance(child, QuoteBlock):
+            result += f"<blockquote>{child.title}</blockquote>"
+        elif isinstance(child, NumberedListBlock):
+            result += f"<div>1. {child.title}</div>"
+        elif isinstance(child, CodeBlock):
+            result += f"<code>child.title</code>"
+        elif isinstance(child, EmbedBlock):
+            result += f"<div>EMBED: {child.display_source}></div>"
+            raise ValueError("Embed block not implemented")
+            # import ipdb; ipdb.set_trace()
+        elif child.type == "table_of_contents":
+            continue
+        else:
+            print(type(child))
+            ipdb.set_trace()
+        if child.get().get('content'):
+            insert_index = i + 1
+            for content_id in reversed(child.get().get('content')):
+                children.insert(insert_index, notion_client.get_block(content_id))
+    return result + "</div>"
 
 
 def to_plaintext(page: PageBlock) -> str:

@@ -1,3 +1,4 @@
+attrs==19.*
 notion==0.*
 ipdb==0.*
 tqdm==4.*
