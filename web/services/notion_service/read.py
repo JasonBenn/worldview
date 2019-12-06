@@ -66,8 +66,8 @@ def to_markdown(page: PageBlock) -> str:
         elif isinstance(child, TodoBlock):
             check = "- [x]" if child.checked else "- [ ]"
             result += f"{check} {child.title}\n"
-        elif isinstance(child, CollectionRowBlock):
-            result += f"<LINK: {child.title}>\n"
+        elif isinstance(child, PageBlock):
+            result += f"<PageBlock: {child.title}>\n"
         elif isinstance(child, DividerBlock):
             result += f"---\n"
         elif isinstance(child, HeaderBlock):
@@ -97,16 +97,20 @@ def to_markdown(page: PageBlock) -> str:
 
 
 def to_html(page: PageBlock) -> str:
+    print("to html")
     notion_client = get_notion_client()
     result = "<div style='text-align: left'>"
     children = list(page.children)
     for i, child in enumerate(children):
+        if len(children) > 100:
+            import ipdb; ipdb.set_trace()
         if isinstance(child, TextBlock):
             title = child.title
             if "‣" in title:
                 title_pieces = child.get('properties')['title']
                 link_ids = [x[1][0][1] for x in title_pieces if x[0] == "‣" and x[1][0][0] == 'p']
                 for link_id in link_ids:
+                    print("getting child link")
                     linked_doc = notion_client.get_block(link_id)
                     linked_doc_url = get_page_url(linked_doc.id, linked_doc.title)
                     title = title.replace("‣", f"<a href='{linked_doc_url}'>{linked_doc.title}</a>", 1)
@@ -114,7 +118,7 @@ def to_html(page: PageBlock) -> str:
         elif isinstance(child, TodoBlock):
             checked = "checked" if child.checked else ""
             result += f"<div><label>{child.title}<input type='checkbox' {checked}'></label></div>"
-        elif isinstance(child, (CollectionRowBlock, BookmarkBlock)):
+        elif isinstance(child, (PageBlock, BookmarkBlock)):
             result += f"<div><a href='{get_page_url(child.id, child.title)}'>{child.title}</a></div>"
         elif isinstance(child, DividerBlock):
             result += f"<br/>"
@@ -125,7 +129,7 @@ def to_html(page: PageBlock) -> str:
         elif isinstance(child, SubsubheaderBlock):
             result += f"<h3>{child.title}</h3>"
         elif isinstance(child, BulletedListBlock):
-            result += f"<div>* {child.title}</div>"
+            result += f"<div>{child.title}</div>"
         elif isinstance(child, ToggleBlock):
             result += f"<div>> {child.title}</div>"
         elif isinstance(child, QuoteBlock):
@@ -136,21 +140,18 @@ def to_html(page: PageBlock) -> str:
             result += f"<code>child.title</code>"
         elif isinstance(child, EmbedBlock):
             result += f"<div>EMBED: {child.display_source}</div>"
-            # raise ValueError("Embed block not implemented")
-            import ipdb; ipdb.set_trace()
         elif isinstance(child, ImageBlock):
-            print("IN IMAGE BLCOK??")
             url = child.get('properties').get('source')[0][0]
             result += f"<img src='{url}'>"
         elif child.type == "table_of_contents":
             continue
         else:
-            print(type(child))
-            ipdb.set_trace()
-        if child.get().get('content'):
+            result += f"<div>NOT HANDLED: {type(child)} {str(child)}</div>"
+        if not isinstance(child, PageBlock) and child.get().get('content'):
             insert_index = i + 1
             # TODO: nest content appropriately.
             for content_id in reversed(child.get().get('content')):
+                print("inserting child")
                 children.insert(insert_index, notion_client.get_block(content_id))
     return result + "</div>"
 
