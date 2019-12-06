@@ -1,12 +1,11 @@
+from datetime import datetime
 from operator import itemgetter
 from typing import Dict
 from typing import List
 from typing import Union
-from uuid import uuid4
-
-import attr
 
 import ipdb
+from django.template import Context, Template
 from notion.block import BookmarkBlock, EmbedBlock
 from notion.block import BulletedListBlock
 from notion.block import CodeBlock
@@ -24,10 +23,11 @@ from notion.block import TextBlock
 from notion.block import TodoBlock
 from notion.block import ToggleBlock
 from notion.client import NotionClient
-from notion.collection import Collection
+from notion.collection import Collection, CollectionRowBlock
 from notion.collection import CollectionRowBlock
 from notion.collection import CollectionView
 
+from web.models import NotionDocument
 from web.utils import asciify
 from web.utils import clean_title
 from web.utils import timeout
@@ -96,11 +96,6 @@ def to_markdown(page: PageBlock) -> str:
     return result
 
 
-@attr.s
-class SinglyNestedBlock:
-    notion_id: str = attr.ib()
-
-
 def to_html(page: PageBlock) -> str:
     notion_client = get_notion_client()
     result = "<div style='text-align: left'>"
@@ -120,7 +115,7 @@ def to_html(page: PageBlock) -> str:
             checked = "checked" if child.checked else ""
             result += f"<div><label>{child.title}<input type='checkbox' {checked}'></label></div>"
         elif isinstance(child, (CollectionRowBlock, BookmarkBlock)):
-            result += f"<div><a href='{get_page_url(child.id, child.title)}'>{child.title}></a></div>"
+            result += f"<div><a href='{get_page_url(child.id, child.title)}'>{child.title}</a></div>"
         elif isinstance(child, DividerBlock):
             result += f"<br/>"
         elif isinstance(child, HeaderBlock):
@@ -140,7 +135,7 @@ def to_html(page: PageBlock) -> str:
         elif isinstance(child, CodeBlock):
             result += f"<code>child.title</code>"
         elif isinstance(child, EmbedBlock):
-            result += f"<div>EMBED: {child.display_source}></div>"
+            result += f"<div>EMBED: {child.display_source}</div>"
             raise ValueError("Embed block not implemented")
             # import ipdb; ipdb.set_trace()
         elif child.type == "table_of_contents":
@@ -150,6 +145,7 @@ def to_html(page: PageBlock) -> str:
             ipdb.set_trace()
         if child.get().get('content'):
             insert_index = i + 1
+            # TODO: nest content appropriately.
             for content_id in reversed(child.get().get('content')):
                 children.insert(insert_index, notion_client.get_block(content_id))
     return result + "</div>"
@@ -177,3 +173,41 @@ def get_schema(block: Union[CollectionView, CollectionViewBlock, Collection]) ->
         raise ValueError("Unknown type")
 
     return collection.get_schema_properties()
+
+
+def get_context(page: CollectionRowBlock):
+    url = get_page_url(page.id, page.title)
+    properties = page.get_all_properties()
+    stringified_properties = {}
+    for key, value in properties.items():
+        if isinstance(value, datetime):
+            stringified_properties[key] = value.strftime('%-m/%-d/%y')
+        elif isinstance(value, list):
+            stringified_properties[key] = ', '.join(value)
+        else:
+            stringified_properties[key] = str(value)
+
+    return Context({
+        "text": to_html(page),
+        "title": page.title,
+        "url": url,
+        "link": f"<a href='{url}'>{page.title}</a>",
+        **stringified_properties
+    }, autoescape=False)
+
+
+def make_card_html(doc: NotionDocument) -> str:
+    parent = doc.parent_database
+    front_template = parent.anki_front_html_template
+    back_template = parent.anki_back_html_template
+
+    client = get_notion_client()
+    page = client.get_block(doc.notion_id)
+    context = get_context(page)
+    print(context)
+
+    # TODO: factor out Anki parts
+    notion_id = doc.notion_id
+    front_html = Template(front_template).render(context)
+    back_html = Template(back_template).render(context)
+    return f"{ notion_id };{front_html};{back_html}"

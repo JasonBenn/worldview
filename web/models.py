@@ -97,10 +97,19 @@ class NotionDatabase(BaseModel):
 
     def clean(self):
         has_template = self.anki_front_html_template or self.anki_back_html_template
+
         if not has_template:
             return True
+
         if not self.schema and has_template:
             raise ValidationError("Can't ensure a template is valid until after the DB's schema has been scraped! Enter just the URL, go back to the main page, and choose the scrape self option.")
+
+        if ";" in self.anki_front_html_template or ";" in self.anki_back_html_template:
+            raise ValidationError("Please don't use semicolons - they're used to delimit Anki fields.")
+
+        if "\n" in self.anki_front_html_template or ";" in self.anki_back_html_template:
+            raise ValidationError("Please don't use newlines - Anki will think each line is a separate flashcard.")
+
         valid_properties = {x['slug'] for x in self.schema} | set(SPECIAL_PROPERTIES.keys())
         for label, template in {"front": self.anki_front_html_template, "back": self.anki_back_html_template}.items():
             used_properties = set(re.findall("{{([\w_]+)}}", template or ""))

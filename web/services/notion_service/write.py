@@ -1,12 +1,14 @@
+import os
+from pathlib import Path
 from typing import Optional
 
 from bert_serving.client import BertClient
+from django.conf import settings
 from psqlextra.query import ConflictAction
 from psqlextra.util import postgres_manager
 from tqdm import tqdm
 
 from web.models import NotionDatabase
-from web.models import NotionDocument
 from web.models import Text
 from web.services.bert_service.read import get_bert_client
 from web.services.notion_service.read import *
@@ -86,3 +88,21 @@ def make_texts(notion_client: NotionClient, notion_id: str, parent_db: NotionDat
     with postgres_manager(Text) as manager:
         manager.on_conflict(["text", "source_book", "source_notion_document"], ConflictAction.UPDATE).bulk_insert(text_records)
 
+
+def export_db_to_anki(db: NotionDatabase):
+    card_htmls = []
+    for doc in NotionDocument.objects.filter(parent_database=db):
+        card_htmls.append(make_card_html(doc))
+    filepath = settings.BASE_DOCUMENT_DIR / clean_title(db.title)
+    with open(filepath, "w") as f:
+        print("\n".join(card_htmls), file=f)
+
+
+def export_to_anki(doc: NotionDocument):
+    card_html = make_card_html(doc)
+    base_dir = settings.BASE_DOCUMENT_DIR / "individual_cards"
+    os.makedirs(base_dir, exist_ok=True)
+    filepath = base_dir / clean_title(doc.title)
+    with open(filepath, "w") as f:
+        print(card_html, file=f)
+    print(filepath)
