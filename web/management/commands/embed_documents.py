@@ -5,7 +5,6 @@ from django.core.management import BaseCommand
 from tqdm import tqdm
 
 from web.models import NotionDocument
-from web.models import Text
 from web.utils import group_by
 
 

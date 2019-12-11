@@ -1,5 +1,4 @@
 import os
-from pathlib import Path
 from typing import Optional
 
 from bert_serving.client import BertClient
@@ -9,10 +8,10 @@ from psqlextra.util import postgres_manager
 from tqdm import tqdm
 
 from web.models import NotionDatabase
-from web.models import Text
 from web.services.bert_service.read import get_bert_client
 from web.services.notion_service.read import *
-from web.utils import get_text_chunks, now
+from web.utils import get_text_chunks
+from web.utils import now
 
 
 def scrape_self(doc: Union[NotionDatabase, NotionDocument]):

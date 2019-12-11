@@ -216,3 +216,7 @@ def make_card_html(doc: NotionDocument) -> str:
     front_html = Template(front_template).render(context)
     back_html = Template(back_template).render(context)
     return f"{ notion_id };{front_html};{back_html}"
+
+
+def get_all_documents() -> Dict[int, str]:
+    return {x['id']: x['text'] for x in NotionDocument.objects.values('id', 'text')}

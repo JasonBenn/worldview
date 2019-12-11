@@ -3,7 +3,6 @@ from django.utils.translation import gettext_lazy as _
 
 from web.models import NotionDatabase
 from web.models import NotionDocument
-from web.models import Text
 from web.services.notion_service.write import scrape_children, export_to_anki, export_db_to_anki
 from web.services.notion_service.write import scrape_self
 
@@ -62,11 +61,5 @@ class NotionDocumentAdmin(admin.ModelAdmin):
     list_filter = (ParentNotionDocumentListFilter, "updated_at")
 
 
-class TextAdmin(admin.ModelAdmin):
-    list_display = ["text", "source_author", "source_series", "source_book", "source_notion_document"]
-    list_filter = ("created_at", "updated_at")
-
-
 admin.site.register(NotionDatabase, NotionDatabaseAdmin)
 admin.site.register(NotionDocument, NotionDocumentAdmin)
-admin.site.register(Text, TextAdmin)

@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
 
-from web.models import GoodreadsAuthor, GoodreadsBook, GoodreadsSeries, NotionDocument, Text
+from web.models import GoodreadsAuthor, GoodreadsBook, GoodreadsSeries, NotionDocument
 
 
 class Command(BaseCommand):
