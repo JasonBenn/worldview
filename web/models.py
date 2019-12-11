@@ -1,4 +1,5 @@
 import re
+from enum import IntEnum
 
 from django.contrib.postgres.fields import JSONField
 from django.core.exceptions import ValidationError
@@ -9,11 +10,12 @@ from django.db.models import IntegerField
 from django.db.models import ManyToManyField
 from django.db.models import Model
 from django.db.models import TextField
+from polymorphic.models import PolymorphicModel
 
 from web.utils import now
 
 
-class BaseModel(Model):
+class Timestampable(Model):
     created_at = DateTimeField(default=now, editable=False)
     updated_at = DateTimeField(default=now, editable=False)
 
@@ -25,13 +27,29 @@ class BaseModel(Model):
         super().save(*args, **kwargs)
 
 
-class Embeddable:
+class Source(PolymorphicModel):
+    json = JSONField()
+
+
+class EmbeddingType(IntEnum):
+    # https://medium.com/@bencleary/using-enums-as-django-model-choices-96c4cbb78b2e
+    TF_IDF = 0
+    BERT = 1
+
+    @classmethod
+    def choices(cls):
+        return [(key.value, key.name) for key in cls]
+
+
+class Embeddable(Timestampable, Model):
     text = TextField()
+    source = ForeignKey(Source, on_delete=models.CASCADE)
     embedding = JSONField(null=True, blank=True)
+    embedding_type = IntegerField(choices=EmbeddingType.choices(), null=True, blank=True)
     projection = JSONField(null=True, blank=True)
 
 
-class GoodreadsEntity:
+class Goodreadsable(Model):
     goodreads_id = IntegerField()
     url = TextField()
 
@@ -39,14 +57,14 @@ class GoodreadsEntity:
         abstract = True
 
 
-class GoodreadsSeries(BaseModel, GoodreadsEntity, Embeddable):
+class GoodreadsSeries(Timestampable, Goodreadsable, Source):
     title = TextField()
 
     def __str__(self):
         return f"<GoodreadsSeries: {self.title}>"
 
 
-class GoodreadsAuthor(BaseModel, GoodreadsEntity, Embeddable):
+class GoodreadsAuthor(Timestampable, Goodreadsable, Source):
     first_name = TextField()
     last_name = TextField(null=True, blank=True)
 
@@ -54,7 +72,7 @@ class GoodreadsAuthor(BaseModel, GoodreadsEntity, Embeddable):
         return f"<GoodreadsAuthor: {self.first_name} {self.last_name}>"
 
 
-class GoodreadsBook(BaseModel, GoodreadsEntity, Embeddable):
+class GoodreadsBook(Timestampable, Goodreadsable, Source):
     title = TextField()
     series = ForeignKey(GoodreadsSeries, null=True, blank=True, on_delete=models.DO_NOTHING, related_name="books")
     authors = ManyToManyField(GoodreadsAuthor, related_name="books")
@@ -63,21 +81,21 @@ class GoodreadsBook(BaseModel, GoodreadsEntity, Embeddable):
         return f"<GoodreadsBook: {self.title}>"
 
 
-class GoodreadsShelf(BaseModel, GoodreadsEntity, Embeddable):
+class GoodreadsShelf(Timestampable, Goodreadsable, Source):
     books = ManyToManyField(GoodreadsBook)
 
     def __str__(self):
         return f"<GoodreadsShelf: {len(self.books)} books>"
 
 
-class GoodreadsQuote(BaseModel, GoodreadsEntity, Embeddable):
+class GoodreadsQuote(Timestampable, Goodreadsable, Source):
     book = ForeignKey(GoodreadsBook, on_delete=models.CASCADE)
 
     def __str__(self):
         return f"<GoodreadsQuote: {self.text:100}>"
 
 
-class GoodreadsUser(BaseModel, GoodreadsEntity):
+class GoodreadsUser(Timestampable, Goodreadsable, Model):
     first_name = TextField()
     last_name = TextField(null=True, blank=True)
 
@@ -93,7 +111,7 @@ SPECIAL_PROPERTIES = {
 }
 
 
-class NotionDatabase(BaseModel):
+class NotionDatabase(Timestampable, Model):
     url = TextField(help_text="<strong>Required.</strong>")
     notion_id = TextField(null=True, blank=True, unique=True)
     title = TextField(null=True, blank=True)
@@ -138,13 +156,11 @@ class NotionDatabase(BaseModel):
         return f"<NotionDatabase: {title}>"
 
 
-class NotionDocument(BaseModel, Embeddable):
-    url = TextField()
+class NotionDocument(Timestampable, Source):
+    url = TextField(unique=True)
     notion_id = TextField(null=True, blank=True, unique=True)
     parent_database = ForeignKey(NotionDatabase, on_delete=models.CASCADE)
     title = TextField(null=True, blank=True)
-    bert_embedding = JSONField(null=True, blank=True)
-    tfidf_embedding = JSONField(null=True, blank=True)
 
     def __str__(self):
         if self.title is None:

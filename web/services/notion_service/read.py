@@ -6,6 +6,8 @@ from typing import Union
 
 import ipdb
 from django.template import Context, Template
+from notion.block import BLOCK_TYPES
+from notion.block import BasicBlock
 from notion.block import BookmarkBlock, EmbedBlock
 from notion.block import BulletedListBlock
 from notion.block import CodeBlock
@@ -156,9 +158,22 @@ def to_html(page: PageBlock) -> str:
     return result + "</div>"
 
 
-def to_plaintext(page: PageBlock) -> str:
-    result = f"{asciify(page.title)}\n\n"
-    for child in page.children:
+class NotionDocumentJson:
+    def __init__(self, json):
+        self.json = json
+
+    @property
+    def title(self) -> str:
+        return self.json['page']['properties']['title'][0][0]
+
+    def children(self) -> List[BasicBlock]:
+        client = get_notion_client()
+        return [BLOCK_TYPES[x['type']](**x, client=client) for x in self.json['children']]
+
+
+def to_plaintext(doc_json: NotionDocumentJson) -> str:
+    result = f"{asciify(doc_json.title)}\n\n"
+    for child in doc_json.children():
         if isinstance(child, (ImageBlock, DividerBlock)):
             continue
         try:
