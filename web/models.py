@@ -131,7 +131,8 @@ class NotionDocument(BaseModel):
     notion_id = TextField(null=True, blank=True, unique=True)
     parent_database = ForeignKey(NotionDatabase, on_delete=models.CASCADE)
     title = TextField(null=True, blank=True)
-    embedding = JSONField(null=True, blank=True)
+    bert_embedding = JSONField(null=True, blank=True)
+    tfidf_embedding = JSONField(null=True, blank=True)
 
     def __str__(self):
         if self.title is None:
