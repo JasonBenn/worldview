@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.utils.translation import gettext_lazy as _
 
+from web.models import Document
 from web.models import NotionDatabase
 from web.models import NotionDocument
 from web.services.notion_service.write import scrape_children, export_to_anki, export_db_to_anki
@@ -63,3 +64,4 @@ class NotionDocumentAdmin(admin.ModelAdmin):
 
 admin.site.register(NotionDatabase, NotionDatabaseAdmin)
 admin.site.register(NotionDocument, NotionDocumentAdmin)
+admin.site.register(Document)

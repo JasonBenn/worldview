@@ -43,12 +43,18 @@ class EmbeddingType(IntEnum):
         return [(key.value, key.name) for key in cls]
 
 
-class Embeddable(Timestampable, Model):
+class Document(Timestampable, Model):
+    class Meta:
+        unique_together = [('source', 'embedding_type')]
+
     text = TextField()
     source = ForeignKey(Source, on_delete=models.CASCADE)
     embedding = JSONField(null=True, blank=True)
     embedding_type = IntegerField(choices=EmbeddingType.choices(), null=True, blank=True)
     projection = JSONField(null=True, blank=True)
+
+    def __str__(self):
+        return self.text[:125]
 
 
 class Goodreadsable(Model):
@@ -176,15 +182,14 @@ class NotionDocument(Timestampable, Source):
             # Not yet scraped
             return self.url
         else:
-            return self.json['page']['properties']['title'][0][0]
+            return ''.join(flatten(self.json['page'].get('properties', {}).get('title', ['[no title]'])))
 
     def to_plaintext(self) -> str:
         result = f"{asciify(self.title)}\n\n"
         content = self.json['content']
         for i, child in enumerate(content):
-
             # If no content, just print a newline.
-            title = ''.join(flatten(child.get('properties', {}).get('title', [])))
+            title = ''.join([x for x in flatten(child.get('properties', {}).get('title', [])) if not isinstance(x, dict) and not len(x) == 1])
 
             if child.get('content'):
                 insert_index = i + 1

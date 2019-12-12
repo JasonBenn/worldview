@@ -50,6 +50,8 @@ def scrape_notion_document(notion_id: str, parent_db: NotionDatabase) -> None:
         return
     uncrawled_doc = {"page": page.get(), "content": [x.get() for x in page.children]}
     json = crawl_nested_doc(uncrawled_doc)
+    if not json['page']['alive']:
+        return
     NotionDocument.objects.create(json=json, notion_id=notion_id, url=url, parent_database=parent_db)
 
 
