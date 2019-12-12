@@ -12,6 +12,8 @@ from django.db.models import Model
 from django.db.models import TextField
 from polymorphic.models import PolymorphicModel
 
+from web.utils import asciify
+from web.utils import flatten
 from web.utils import now
 
 
@@ -160,13 +162,35 @@ class NotionDocument(Timestampable, Source):
     url = TextField(unique=True)
     notion_id = TextField(null=True, blank=True, unique=True)
     parent_database = ForeignKey(NotionDatabase, on_delete=models.CASCADE)
-    title = TextField(null=True, blank=True)
 
     def __str__(self):
-        if self.title is None:
-            title = "[not yet scraped] " + self.url
-        elif self.title == "":
+        if self.title == "":
             title = "[empty title]"
         else:
             title = self.title
         return f"<NotionDocument: {title}>"
+
+    @property
+    def title(self) -> str:
+        if self.json is None:
+            # Not yet scraped
+            return self.url
+        else:
+            return self.json['page']['properties']['title'][0][0]
+
+    def to_plaintext(self) -> str:
+        result = f"{asciify(self.title)}\n\n"
+        content = self.json['content']
+        for i, child in enumerate(content):
+
+            # If no content, just print a newline.
+            title = ''.join(flatten(child.get('properties', {}).get('title', [])))
+
+            if child.get('content'):
+                insert_index = i + 1
+                # TODO: nest content appropriately.
+                for nested_content in reversed(child.get('content')):
+                    content.insert(insert_index, nested_content)
+
+            result += f"{asciify(title)}\n"
+        return result

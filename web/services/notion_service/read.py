@@ -5,15 +5,15 @@ from typing import List
 from typing import Union
 
 import ipdb
-from django.template import Context, Template
-from notion.block import BLOCK_TYPES
-from notion.block import BasicBlock
-from notion.block import BookmarkBlock, EmbedBlock
+from django.template import Context
+from django.template import Template
+from notion.block import BookmarkBlock
 from notion.block import BulletedListBlock
 from notion.block import CodeBlock
 from notion.block import CollectionViewBlock
 from notion.block import CollectionViewPageBlock
 from notion.block import DividerBlock
+from notion.block import EmbedBlock
 from notion.block import HeaderBlock
 from notion.block import ImageBlock
 from notion.block import NumberedListBlock
@@ -25,8 +25,7 @@ from notion.block import TextBlock
 from notion.block import TodoBlock
 from notion.block import ToggleBlock
 from notion.client import NotionClient
-from notion.collection import Collection, CollectionRowBlock
-from notion.collection import CollectionRowBlock
+from notion.collection import Collection
 from notion.collection import CollectionView
 
 from web.models import NotionDocument
@@ -59,10 +58,10 @@ def get_db_row_ids(block: Union[CollectionViewPageBlock, CollectionViewBlock]) -
     return view.get()['page_sort']
 
 
-def to_markdown(page: PageBlock) -> str:
+def to_markdown(page: NotionDocument) -> str:
     result = ""
     result += f"# {page.title}\n"
-    for child in page.children:
+    for child in page.children():
         if isinstance(child, TextBlock):
             result += f"{child.title}\n"
         elif isinstance(child, TodoBlock):
@@ -158,22 +157,9 @@ def to_html(page: PageBlock) -> str:
     return result + "</div>"
 
 
-class NotionDocumentJson:
-    def __init__(self, json):
-        self.json = json
-
-    @property
-    def title(self) -> str:
-        return self.json['page']['properties']['title'][0][0]
-
-    def children(self) -> List[BasicBlock]:
-        client = get_notion_client()
-        return [BLOCK_TYPES[x['type']](**x, client=client) for x in self.json['children']]
-
-
-def to_plaintext(doc_json: NotionDocumentJson) -> str:
-    result = f"{asciify(doc_json.title)}\n\n"
-    for child in doc_json.children():
+def to_plaintext(doc: NotionDocument) -> str:
+    result = f"{asciify(doc.title)}\n\n"
+    for child in doc.children():
         if isinstance(child, (ImageBlock, DividerBlock)):
             continue
         try:
@@ -195,8 +181,9 @@ def get_schema(block: Union[CollectionView, CollectionViewBlock, Collection]) ->
     return collection.get_schema_properties()
 
 
-def get_context(page: CollectionRowBlock):
+def get_context(page: NotionDocument):
     url = get_page_url(page.id, page.title)
+    from IPython import embed; embed()
     properties = page.get_all_properties()
     stringified_properties = {}
     for key, value in properties.items():
@@ -221,8 +208,7 @@ def make_card_html(doc: NotionDocument) -> str:
     front_template = parent.anki_front_html_template
     back_template = parent.anki_back_html_template
 
-    client = get_notion_client()
-    page = client.get_block(doc.notion_id)
+    page = doc.page
     context = get_context(page)
     print(context)
 
@@ -235,3 +221,44 @@ def make_card_html(doc: NotionDocument) -> str:
 
 def get_all_documents() -> Dict[int, str]:
     return {x['id']: x['text'] for x in NotionDocument.objects.values('id', 'text')}
+
+
+def crawl_nested_doc(id_or_doc: Union[str, dict], ignore_nested_pages: bool = True) -> dict:
+    notion_client = get_notion_client()
+    if isinstance(id_or_doc, str):
+        # If an ID: fetch
+        doc = notion_client.get_block(id_or_doc).get()
+    else:
+        # If a doc (JSON), continue
+        doc = id_or_doc
+
+    # If a whole other page: ignore content (usually)
+    if doc.get('type') == 'page' and doc.get('content') and ignore_nested_pages:
+        del doc['content']
+
+    title = doc.get('properties', {}).get('title', [])
+    unfolded_title = []
+    for title_component in title:
+        # Manually replace titles for inline links
+        is_link = title_component[0] == '‣' and title_component[1][0][0] == 'p'
+        if is_link:
+            inline_link_id = title_component[1][0][1]
+            linked_doc = notion_client.get_block(inline_link_id).get()
+            if linked_doc['type'] == 'collection_view_page':
+                # TODO: this is a bit gross - links to other kinds of pages have different ways to get titles.
+                unfolded_title.append(notion_client.get_collection(linked_doc['collection_id']).get()['name'])
+            else:
+                unfolded_title.append(linked_doc['properties']['title'])
+        else:
+            unfolded_title.append(title_component)
+    if unfolded_title:
+        doc['properties']['title'] = unfolded_title
+
+    content = doc.get('content')
+    if content:
+        # If there is deeper content to crawl, recurse
+        unfolded_content = []
+        for child_id in content:
+            unfolded_content.append(crawl_nested_doc(child_id))
+        doc['content'] = unfolded_content
+    return doc

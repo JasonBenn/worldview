@@ -4,12 +4,12 @@ from django.utils.translation import gettext_lazy as _
 from web.models import NotionDatabase
 from web.models import NotionDocument
 from web.services.notion_service.write import scrape_children, export_to_anki, export_db_to_anki
-from web.services.notion_service.write import scrape_self
+from web.services.notion_service.write import scrape_notion_db
 
 
 def do_scrape_self(modeladmin, request, queryset):
     for doc in queryset:
-        scrape_self(doc)
+        scrape_notion_db(doc)
 
 
 def do_scrape_children(modeladmin, request, queryset):

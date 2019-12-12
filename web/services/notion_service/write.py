@@ -1,33 +1,28 @@
 import os
-from typing import Optional
 
-from bert_serving.client import BertClient
 from django.conf import settings
-from psqlextra.query import ConflictAction
-from psqlextra.util import postgres_manager
+from django.db.models import Q
 from tqdm import tqdm
 
 from web.models import NotionDatabase
-from web.services.bert_service.read import get_bert_client
 from web.services.notion_service.read import *
-from web.utils import get_text_chunks
 from web.utils import now
 
 
-def scrape_self(doc: Union[NotionDatabase, NotionDocument]):
+def scrape_notion_db(doc: Union[NotionDatabase, NotionDocument]):
     """Verify the Notion doc is still alive, scrape some info about it"""
     print("Scraping self")
     notion_client = get_notion_client()
-    block = notion_client.get_block(doc.url)
-    if not block.alive:
+    page = notion_client.get_block(doc.url)
+    if not page.alive:
         doc.delete()
         return
 
-    doc.notion_id = block.id
-    doc.title = block.title
+    doc.notion_id = page.id
+    doc.title = page.title
     print("Getting schema")
     if isinstance(doc, NotionDatabase):
-        doc.schema = get_schema(block)
+        doc.schema = get_schema(page)
     print("Saving")
     doc.save()
     print("Done")
@@ -35,57 +30,27 @@ def scrape_self(doc: Union[NotionDatabase, NotionDocument]):
 
 def scrape_children(db: NotionDatabase):
     notion_client = get_notion_client()
-    block = notion_client.get_block(db.url)
-    scrape_self(db)
+    page = notion_client.get_block(db.url)
+    scrape_notion_db(db)
 
-    print("Getting BERT")
-    bert_client = get_bert_client()
-    print("Got BERT")
-    if isinstance(block, (CollectionViewPageBlock, CollectionViewBlock)):
-        row_ids = get_db_row_ids(block)
+    if isinstance(page, (CollectionViewPageBlock, CollectionViewBlock)):
+        row_ids = get_db_row_ids(page)
         print(f"Scraping: {db.title}")
         for row_id in tqdm(row_ids):
-            make_texts(notion_client, row_id, parent_db=db, bert_client=bert_client)
+            scrape_notion_document(row_id, db)
     else:
-        raise TypeError(f"Unexpected Notion document type: {type(block)}")
+        raise TypeError(f"Unexpected Notion document type: {type(page)}")
 
 
-def make_texts(notion_client: NotionClient, notion_id: str, parent_db: NotionDatabase, bert_client: Optional[BertClient] = None):
-    child_block = notion_client.get_block(notion_id)
-    print(child_block)
-    if not child_block.alive:
-        try:
-            NotionDocument.objects.get(notion_id=notion_id).delete()
-        except NotionDocument.DoesNotExist:
-            pass
+def scrape_notion_document(notion_id: str, parent_db: NotionDatabase) -> None:
+    notion_client = get_notion_client()
+    page = notion_client.get_block(notion_id)
+    url = page.get_browseable_url()
+    if NotionDocument.objects.filter(Q(url=url) | Q(notion_id=notion_id)).count():
         return
-
-    defaults = {
-        "title": child_block.title,
-        "url": child_block.get_browseable_url(),
-        "parent_database": parent_db
-    }
-
-    child_doc, created = NotionDocument.objects.get_or_create(
-        notion_id=notion_id,
-        defaults=defaults
-    )
-
-    text_records = []
-    text_chunks = get_text_chunks(to_plaintext(child_block))
-    if bert_client:
-        embeddings = bert_client.encode(text_chunks).tolist()
-    else:
-        embeddings = [None] * len(text_chunks)
-    for text_chunk, embedding in zip(text_chunks, embeddings):
-        text_records.append({
-            "text": text_chunk,
-            "source_notion_document": child_doc,
-            "embedding": embedding
-        })
-
-    with postgres_manager(Text) as manager:
-        manager.on_conflict(["text", "source_book", "source_notion_document"], ConflictAction.UPDATE).bulk_insert(text_records)
+    uncrawled_doc = {"page": page.get(), "content": [x.get() for x in page.children]}
+    json = crawl_nested_doc(uncrawled_doc)
+    NotionDocument.objects.create(json=json, notion_id=notion_id, url=url, parent_database=parent_db)
 
 
 def export_db_to_anki(db: NotionDatabase):

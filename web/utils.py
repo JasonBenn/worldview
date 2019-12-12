@@ -39,7 +39,7 @@ def get_text_chunks(text: str) -> List[str]:
     # TODO: cut on token boundary: https://spacy.io/usage/linguistic-features#retokenization
     for i in range(len(text) // 512 + 1):
         start_index = i * 512
-        end_index = (i+1) * 512
+        end_index = (i + 1) * 512
         chunks.append(text[start_index:end_index])
     return chunks
 
@@ -69,3 +69,11 @@ def timeout(seconds=5, error_message=os.strerror(errno.ETIME)):
 
 def cosine_distance(a: np.array, b: np.array) -> float:
     return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+
+
+def flatten(arr):
+    for i in arr:
+        if isinstance(i, list):
+            yield from flatten(i)
+        else:
+            yield i
