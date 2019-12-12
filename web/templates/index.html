@@ -9,6 +9,7 @@
 <div id="tester" style="width:100vw;height:100vh;"></div>
 <script>
     TESTER = document.getElementById('tester');
+    var symbols = {{ symbols | safe }}
     var data = {
         "x": {{ xs | safe }},
         "y": {{ ys | safe }},
@@ -18,7 +19,9 @@
         "textfont": {"family": "Times New Roman"},
         "marker": {
             "color": {{ colors | safe }},
-            "hoverinfo": "text"
+            "symbol": symbols,
+            "hoverinfo": "text",
+            "line": {"cmin": {{color_min}}, "cmax": {{color_max}}, "colorscale": "Viridis"},
         }
     }
     Plotly.newPlot(TESTER, [data], {title: "UMAP of Worldview", hovermode: "closest"});
