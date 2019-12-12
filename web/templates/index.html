@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Title</title>
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+<body>
+<div id="tester" style="width:100vw;height:100vh;"></div>
+<script>
+    TESTER = document.getElementById('tester');
+    var data = {
+        "x": {{ xs | safe }},
+        "y": {{ ys | safe }},
+        "mode": "markers",
+        "type": "scatter",
+        "text": {{ texts | safe }},
+        "textfont": {"family": "Times New Roman"},
+        "marker": {
+            "color": {{ colors | safe }},
+            "hoverinfo": "text"
+        }
+    }
+    Plotly.newPlot(TESTER, [data], {title: "UMAP of Worldview", hovermode: "closest"});
+</script>
+</body>
+</html>
