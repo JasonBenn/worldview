@@ -4,7 +4,9 @@ from django.utils.translation import gettext_lazy as _
 from web.models import Document
 from web.models import NotionDatabase
 from web.models import NotionDocument
-from web.services.notion_service.write import scrape_children, export_to_anki, export_db_to_anki
+from web.services.notion_service.write import export_db_to_anki
+from web.services.notion_service.write import export_to_anki
+from web.services.notion_service.write import scrape_children
 from web.services.notion_service.write import scrape_notion_db
 
 

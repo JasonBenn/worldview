@@ -1,5 +1,4 @@
 import json
-from collections import defaultdict
 
 from django.shortcuts import render
 
