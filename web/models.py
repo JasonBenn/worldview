@@ -37,6 +37,7 @@ class EmbeddingType(IntEnum):
     # https://medium.com/@bencleary/using-enums-as-django-model-choices-96c4cbb78b2e
     TF_IDF = 0
     BERT = 1
+    LEMMATIZED_TF_IDF = 2
 
     @classmethod
     def choices(cls):
