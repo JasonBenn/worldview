@@ -1,4 +1,5 @@
 import json
+from collections import defaultdict
 
 from django.shortcuts import render
 
@@ -22,29 +23,32 @@ def insert_linebreaks(text: str, window_size: int = 80) -> str:
 
 
 def index(request):
-    document_query = Document.objects.filter(embedding_type=EmbeddingType.LEMMATIZED_TF_IDF)
-    unprojected_count = document_query.filter(embedding__isnull=True).count()
-    if unprojected_count:
-        print(f"Number of documents without projections: {unprojected_count}")
+    worldview_db = NotionDatabase.objects.get(title="Worldview")
+    traces = []
+    for db in NotionDatabase.objects.all():
+        docs = Document.objects.filter(
+            source__notiondocument__parent_database=db,
+            embedding_type=EmbeddingType.LEMMATIZED_TF_IDF
+        )
 
-    docs = document_query.select_related('source__notiondocument')
-    xs, ys, document_db_ids, texts = zip(*[(
-        x.projection[0],
-        x.projection[1],
-        x.source.notiondocument.parent_database_id,
-        x.text
-    ) for x in docs])
+        xs, ys, texts = zip(*[(
+            x.projection[0],
+            x.projection[1],
+            x.text
+        ) for x in docs])
 
-    worldview_db_id = NotionDatabase.objects.get(title="Worldview").id
+        traces.append({
+            "name": db.title,
+            "x": xs,
+            "y": ys,
+            "text": [insert_linebreaks(x) for x in texts],
+            "mode": "markers",
+            "type": "scatter",
+            "textfont": {"family": "Times New Roman"},
+            "marker": {
+                "symbol": [DONE_SYMBOL if db == worldview_db else INBOX_SYMBOL] * len(docs),
+                "hoverinfo": "text",
+            }
+        })
 
-    context = {
-        "xs": json.dumps(xs),
-        "ys": json.dumps(ys),
-        "texts": json.dumps([insert_linebreaks(x) for x in texts]),
-        "colors": json.dumps(document_db_ids),
-        "symbols": json.dumps([DONE_SYMBOL if x == worldview_db_id else INBOX_SYMBOL for x in document_db_ids]),
-        "color_min": NotionDatabase.objects.order_by('id').first().id,
-        "color_max": NotionDatabase.objects.order_by('id').last().id,
-    }
-
-    return render(request, 'index.html', context)
+    return render(request, 'index.html', {"data": json.dumps(traces)})

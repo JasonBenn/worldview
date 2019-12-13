@@ -9,22 +9,13 @@
 <div id="tester" style="width:100vw;height:100vh;"></div>
 <script>
     TESTER = document.getElementById('tester');
-    var symbols = {{ symbols | safe }}
-    var data = {
-        "x": {{ xs | safe }},
-        "y": {{ ys | safe }},
-        "mode": "markers",
-        "type": "scatter",
-        "text": {{ texts | safe }},
-        "textfont": {"family": "Times New Roman"},
-        "marker": {
-            "color": {{ colors | safe }},
-            "symbol": symbols,
-            "hoverinfo": "text",
-            "line": {"cmin": {{color_min}}, "cmax": {{color_max}}, "colorscale": "Viridis"},
-        }
-    }
-    Plotly.newPlot(TESTER, [data], {title: "UMAP of Worldview", hovermode: "closest"});
+    const data = {{ data | safe }}
+    const layout = {
+        title: "UMAP of Worldview",
+        hovermode: "closest",
+        showlegend: true
+    };
+    Plotly.newPlot(TESTER, data, layout);
 </script>
 </body>
 </html>

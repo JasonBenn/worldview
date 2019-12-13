@@ -54,5 +54,3 @@ class Command(BaseCommand):
 
         with postgres_manager(Document) as manager:
             manager.on_conflict(['source', 'embedding_type'], ConflictAction.UPDATE).bulk_insert(embeddables)
-
-
