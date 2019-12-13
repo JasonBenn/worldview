@@ -44,10 +44,10 @@ def index(request):
             "text": [insert_linebreaks(x) for x in texts],
             "mode": "markers",
             "type": "scatter",
+            "hoverinfo": "text",
             "textfont": {"family": "Times New Roman"},
             "marker": {
-                "symbol": [DONE_SYMBOL if db == worldview_db else INBOX_SYMBOL] * len(docs),
-                "hoverinfo": "text",
+                "symbol": [DONE_SYMBOL if db == worldview_db else INBOX_SYMBOL] * len(docs)
             }
         })
 
