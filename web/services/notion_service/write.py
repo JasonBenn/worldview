@@ -1,4 +1,5 @@
 import os
+from typing import Optional
 
 from django.conf import settings
 from django.db.models import Q
@@ -37,22 +38,28 @@ def scrape_children(db: NotionDatabase):
         row_ids = get_db_row_ids(page)
         print(f"Scraping: {db.title}")
         for row_id in tqdm(row_ids):
+            # TODO: when to update, when to not update?
+            # existing_doc = NotionDocument.objects.filter(Q(url=url) | Q(notion_id=notion_id))
+            # if not update_if_exists and existing_doc.count():
+            #     return existing_doc.first()
+
             scrape_notion_document(row_id, db)
     else:
         raise TypeError(f"Unexpected Notion document type: {type(page)}")
 
 
-def scrape_notion_document(notion_id: str, parent_db: NotionDatabase) -> None:
+def scrape_notion_document(notion_id: str, parent_db: NotionDatabase) -> Optional[NotionDocument]:
     notion_client = get_notion_client()
     page = notion_client.get_block(notion_id)
     url = page.get_browseable_url()
-    if NotionDocument.objects.filter(Q(url=url) | Q(notion_id=notion_id)).count():
-        return
+
     uncrawled_doc = {"page": page.get(), "content": [x.get() for x in page.children]}
     json = crawl_nested_doc(uncrawled_doc)
     if not json['page']['alive']:
-        return
-    NotionDocument.objects.create(json=json, notion_id=notion_id, url=url, parent_database=parent_db)
+        return None
+
+    doc, created = NotionDocument.objects.update_or_create(notion_id=notion_id, url=url, defaults={"json": json, "parent_database": parent_db})
+    return doc
 
 
 def export_db_to_anki(db: NotionDatabase):

@@ -152,9 +152,13 @@ def preprocess_docs_to_words(docs: List[str]) -> List[List[str]]:
     return lemmatized_texts
 
 
+URL_REGEX = re.compile("(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})", re.M)
+
+
 def sent_to_words(doc: str) -> List[str]:
     # doc = re.sub('\S*@\S*\s?', '', doc)  # remove emails
-    doc = re.sub("\s+", "" "", doc)  # remove newline chars
+    doc = re.sub(URL_REGEX, "", doc)  # remove URLs
+    doc = re.sub("\s+", " " "", doc)  # remove newline chars
     doc = re.sub("\'", "", doc)  # remove single quotes
     doc = gensim.utils.simple_preprocess(doc, deacc=True)
     return doc

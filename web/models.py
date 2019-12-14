@@ -1,5 +1,6 @@
 import re
 from enum import IntEnum
+from typing import List
 
 from django.contrib.postgres.fields import JSONField
 from django.core.exceptions import ValidationError
@@ -189,8 +190,7 @@ class NotionDocument(Timestampable, Source):
         result = f"{asciify(self.title)}\n\n"
         content = self.json['content']
         for i, child in enumerate(content):
-            # If no content, just print a newline.
-            title = ''.join([x for x in flatten(child.get('properties', {}).get('title', [])) if not isinstance(x, dict) and not len(x) == 1])
+            title = title_to_plaintext(child.get('properties', {}).get('title', []))
 
             if child.get('content'):
                 insert_index = i + 1
@@ -200,3 +200,27 @@ class NotionDocument(Timestampable, Source):
 
             result += f"{asciify(title)}\n"
         return result
+
+
+def title_to_plaintext(raw_title: List) -> str:
+    if not len(raw_title):
+        return ''
+
+    visible_components = []
+    # [['https://twitter.com/arcalinea', [['a', 'https://twitter.com/arcalinea']]]]
+    for component in raw_title:
+        # ['https://twitter.com/arcalinea', [['a', 'https://twitter.com/arcalinea']]]
+        if isinstance(component, list):
+            for attribute in component:
+                # [['a', 'https://twitter.com/arcalinea']]
+                if isinstance(attribute, str):
+                    visible_components.append(attribute)
+                elif isinstance(attribute, list):
+                    attribute_type = attribute[0][0]
+                    if attribute_type == 'a':
+                        # Skip link information.
+                        continue
+                    else:
+                        visible_components.append(attribute)
+    title = ' '.join([x for x in flatten(visible_components) if not isinstance(x, dict) and not len(x) == 1]).replace('  ', ' ')
+    return title
