@@ -152,7 +152,9 @@ def preprocess_docs_to_words(docs: List[str]) -> List[List[str]]:
     return lemmatized_texts
 
 
-URL_REGEX = re.compile("(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})", re.M)
+URL_REGEX = re.compile(
+    "(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})",
+    re.M)
 
 
 def sent_to_words(doc: str) -> List[str]:
@@ -162,3 +164,19 @@ def sent_to_words(doc: str) -> List[str]:
     doc = re.sub("\'", "", doc)  # remove single quotes
     doc = gensim.utils.simple_preprocess(doc, deacc=True)
     return doc
+
+
+def normalized_notion_url(page_id: str) -> str:
+    return f"notion://www.notion.so/{page_id.replace('-', '')}"
+
+
+def insert(source_str, insert_str, pos):
+    return source_str[:pos] + insert_str + source_str[pos:]
+
+
+def restore_notion_id_hyphens(notion_id: str) -> str:
+    notion_id = insert(notion_id, '-', 20)
+    notion_id = insert(notion_id, '-', 16)
+    notion_id = insert(notion_id, '-', 12)
+    notion_id = insert(notion_id, '-', 8)
+    return notion_id

@@ -15,6 +15,7 @@ from polymorphic.models import PolymorphicModel
 
 from web.utils import asciify
 from web.utils import flatten
+from web.utils import normalized_notion_url
 from web.utils import now
 
 
