@@ -37,11 +37,7 @@ class Command(BaseCommand):
         vectorizer = TfidfVectorizer()
         vectors = vectorizer.fit_transform(lemmatized_texts)
 
-        n_neighbors = 10
-        min_dist = 0.5
-        print("umapping")
-        reducer = UMAP(n_neighbors=n_neighbors, min_dist=min_dist)
-        projections = reducer.fit_transform(vectors)
+        projections = project(vectors)
 
         embeddables = []
         for doc, text, projection in zip(docs, texts, projections.tolist()):
@@ -54,3 +50,9 @@ class Command(BaseCommand):
 
         with postgres_manager(Document) as manager:
             manager.on_conflict(['source', 'embedding_type'], ConflictAction.UPDATE).bulk_insert(embeddables)
+
+
+def project(vectors, n_neighbors=10, min_dist=0.5):
+    reducer = UMAP(n_neighbors=n_neighbors, min_dist=min_dist)
+    projections = reducer.fit_transform(vectors)
+    return projections

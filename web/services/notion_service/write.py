@@ -1,7 +1,10 @@
+import json
 import os
+from copy import deepcopy
 from typing import Optional
 
 from django.conf import settings
+from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models import Q
 from tqdm import tqdm
 
@@ -52,13 +55,19 @@ def scrape_notion_document(notion_id: str, parent_db: NotionDatabase) -> Optiona
     notion_client = get_notion_client()
     page = notion_client.get_block(notion_id)
     url = page.get_browseable_url()
-
-    uncrawled_doc = {"page": page.get(), "content": [x.get() for x in page.children]}
-    json = crawl_nested_doc(uncrawled_doc)
-    if not json['page']['alive']:
+    page_json = deepcopy(page.get())
+    # TODO: get properties in a JSON-safe way. That means no datetimes allowed here. Then, rescrape all docs, and make inboxes!
+    from IPython import embed; embed()
+    stuff = [(int(v) if isinstance(v, datetime) else v)]
+    page_json['properties'] = {k: v for k, v in page.get_all_properties().items()}  # Properties are slugified otherwise.
+    uncrawled_doc = {"page": page_json, "content": [x.get() for x in page.children]}
+    page_json = crawl_nested_doc(uncrawled_doc)
+    if not page_json['page']['alive']:
         return None
 
-    doc, created = NotionDocument.objects.update_or_create(notion_id=notion_id, url=url, defaults={"json": json, "parent_database": parent_db})
+    doc, created = NotionDocument.objects.update_or_create(notion_id=notion_id, url=url, defaults={"page_json": json.dumps(page_json, cls=DjangoJSONEncoder), "parent_database": parent_db})
+    print("created", created)
+
     return doc
 
 
