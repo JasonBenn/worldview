@@ -30,19 +30,13 @@ from notion.collection import CollectionView
 
 from web.models import NotionDocument
 from web.utils import asciify
-from web.utils import clean_title
+from web.utils import normalized_notion_url
 from web.utils import timeout
-
-
-def get_page_url(page_id: str, page_title: str) -> str:
-    url = clean_title(page_title) + page_id.replace('-', '')
-    return f"notion://www.notion.so/{url}"
-
 
 NOTION_CLIENT_MEMORY_CACHE = None
 
 
-@timeout(3)
+@timeout(10)
 def get_notion_client() -> NotionClient:
     global NOTION_CLIENT_MEMORY_CACHE
     if NOTION_CLIENT_MEMORY_CACHE is None:
@@ -113,14 +107,14 @@ def to_html(page: PageBlock) -> str:
                 for link_id in link_ids:
                     print("getting child link")
                     linked_doc = notion_client.get_block(link_id)
-                    linked_doc_url = get_page_url(linked_doc.id, linked_doc.title)
+                    linked_doc_url = normalized_notion_url(linked_doc.id)
                     title = title.replace("‣", f"<a href='{linked_doc_url}'>{linked_doc.title}</a>", 1)
             result += f"<p>{title}</p>"
         elif isinstance(child, TodoBlock):
             checked = "checked" if child.checked else ""
             result += f"<div><label>{child.title}<input type='checkbox' {checked}'></label></div>"
         elif isinstance(child, (PageBlock, BookmarkBlock)):
-            result += f"<div><a href='{get_page_url(child.id, child.title)}'>{child.title}</a></div>"
+            result += f"<div><a href='{normalized_notion_url(child.id)}'>{child.title}</a></div>"
         elif isinstance(child, DividerBlock):
             result += f"<br/>"
         elif isinstance(child, HeaderBlock):
@@ -182,7 +176,7 @@ def get_schema(block: Union[CollectionView, CollectionViewBlock, Collection]) ->
 
 
 def get_context(page: NotionDocument):
-    url = get_page_url(page.id, page.title)
+    url = normalized_notion_url(page.id)
     from IPython import embed; embed()
     properties = page.get_all_properties()
     stringified_properties = {}

@@ -4,20 +4,136 @@
   <meta charset="UTF-8">
   <title>Title</title>
   <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <style>
+    body {
+      display: grid;
+      grid-template-columns: 200px auto 200px;
+      grid-template-rows: auto;
+      font-family: Avenir;
+
+      margin: 0;
+    }
+
+    #left, #right {
+      display: flex;
+      flex-direction: column;
+      max-height: 100vh;
+    }
+
+    .contents {
+      flex-grow: 1;
+      overflow-y: scroll;
+    }
+
+    .contents > * {
+      margin-bottom: .2em;
+      overflow-y: scroll;
+    }
+
+    #graph {
+      height: 100vh;
+    }
+
+    h2 {
+      text-align: center;
+    }
+  </style>
 </head>
 <body>
-<div id="tester" style="width:100vw;height:100vh;"></div>
+<div id="left">
+  <h2>Recent</h2>
+  <div class="contents">
+    {% for document in recent_documents %}
+      <div><span class="document-title"
+                 data-projection="{{ document.projection }}">{{ document.source.notiondocument.title }}</span> <a
+          href="{{ document.source.notiondocument.url }}">↗</a>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div id="graph"></div>
+
+<div id="right">
+  <h2>Selected</h2>
+  <div class="contents"></div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.4.1.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.15/lodash.min.js" integrity="sha256-VeNaFBVDhoX3H+gJ37DpT/nTuZTdjYro9yBruHjVmoQ=" crossorigin="anonymous"></script>
 <script>
-    TESTER = document.getElementById('tester');
-    const data = {{ data | safe }}
+    const data = {{ graph | safe }}
+    const db_titles = {{ db_titles | safe }}
+</script>
+
+<script>
+    {#def insert_linebreaks(text: str, window_size: int = 80) -> str:#}
+    {#    lines = text.split("\n")#}
+    {#    split_lines = []#}
+    {#    for line in lines:#}
+    {#        for i in range(0, len(line) // window_size + 1):#}
+    {#            start_index = i * window_size#}
+    {#            end_index = start_index + window_size#}
+    {#            split_lines.append(line[start_index:end_index])#}
+    {#    return "<br>".join(split_lines)#}
+    {##}
+    const mapped = data.map(el => ({x: el.projection[0], y: el.projection[1], text: el.text, db_id: el.db_id}));
+    const grouped = _.groupBy(mapped, x => x.db_id)
+    const traces = _.map(grouped, (documents, db_id) => {
+      return {
+        name: db_titles[db_id],
+        x: documents.map(el => el.x),
+        y: documents.map(el => el.y),
+        text: documents.map(el => el.text.replace("\n", "<br>")),  // TODO: add newlines
+        mode: "markers",
+        type: "scatter",
+        hoverinfo: "text",
+        textfont: {family: "Helvetica"},
+        marker: {
+            symbol: 200
+        },
+      }
+    })
+    {#    "marker": {#}
+    {#        "symbol": [DONE_SYMBOL if db == worldview_db else INBOX_SYMBOL] * len(docs)#}
+    {#    }#}
+
+
+    const graph = document.getElementById('graph');
     const layout = {
-        title: "UMAP of Worldview",
         hovermode: "closest",
         showlegend: true,
         xaxis: {visible: false},
+        annotations: [],
         yaxis: {visible: false},
     };
-    Plotly.newPlot(TESTER, data, layout);
+    Plotly.plot(graph, traces, layout);
+
+    function getTitle(text) {
+        let thing = text.text.split('<br>')[0];
+        return thing
+    }
+
+    graph.on('plotly_selected', function (eventData) {
+        document.querySelector('#right .contents').innerHTML = eventData.points.map(x => "<div>" + getTitle(x) + "</div>").join('')
+    })
+
+    $('#left').on('mouseover', '.document-title', e => {
+        const text = e.target.innerText
+        const [x, y] = JSON.parse(e.target.dataset.projection)
+        const annotation = {
+            text: text,
+            x: x,
+            y: y
+        }
+        Plotly.relayout(graph, {annotations: [annotation]})
+    })
+
+    $('#left').on('mouseout', '.document-title', e => {
+        Plotly.relayout(graph, {annotations: []})
+    })
+
+
 </script>
 </body>
 </html>
