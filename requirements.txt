@@ -15,3 +15,5 @@ django-postgres-extra==1.*
 psycopg2==2.*
 python_dotenv==0.*
 django-polymorphic==2.*
+gensim==3.*
+nltk==3.*
