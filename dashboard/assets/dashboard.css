@@ -1,0 +1,53 @@
+body {
+    line-height: 1.5;
+}
+
+.node {
+    padding: .25em .5em;
+    border-radius: .5em;
+    margin: .25em .5em;
+    border: 1px solid #333;
+    border-color: hsla(0, 0%, 0%, 0.5);
+    border-radius: 5px;
+    float: left;
+    max-width: 500px;
+}
+
+.edges-1 {
+    background-color: #DEEDCF;
+}
+
+.edges-2 {
+    background-color: #BFE1B0;
+}
+
+.edges-3 {
+    background-color: #99D492;
+}
+
+.edges-4 {
+    background-color: #74C67A;
+}
+
+br, hr, footer {
+    clear: both;
+}
+
+section {
+    border-bottom: 2px solid black;
+    padding: 1em 0;
+    overflow: scroll;
+}
+
+.questions {
+    height: 15vh;
+}
+
+.references {
+    height: 8vh;
+}
+
+.posts {
+    height: 8vh;
+}
+

@@ -10,9 +10,32 @@
 </head>
 <body>
 
-{% for note, note_data in notes %}
-  <div class="note">{{ note_data.num_edges }} {{ note }}</div>
-{% endfor %}
+<section>
+  <section class="questions">
+    {% for node, data in questions %}
+      <div class="node edges-{{ data.num_edges }}">{{ node }}</div>
+    {% endfor %}
+    <br>
+  </section>
+  <section class="references">
+    {% for node, data in references %}
+      <div class="node edges-{{ data.num_edges }}">{{ node }}</div>
+    {% endfor %}
+    <br>
+  </section>
+  <section class="notes">
+    {% for node, data in notes %}
+      <div class="node edges-{{ data.num_edges }}">{{ node }}</div>
+    {% endfor %}
+    <br>
+  </section>
+  <section class="posts">
+    {% for node, data in posts %}
+      <div class="node edges-{{ data.num_edges }}">{{ node }}</div>
+    {% endfor %}
+    <br>
+  </section>
+</section>
 
 <footer>
   <div>Last updated: {{ last_updated }}</div>
