@@ -10,7 +10,7 @@
 </head>
 <body>
 
-<section>
+<div class="container">
   <section class="questions">
     {% for node, data in questions %}
       <div class="node edges-{{ data.num_edges }}">{{ node }}</div>
@@ -35,9 +35,23 @@
     {% endfor %}
     <br>
   </section>
-</section>
+</div>
 
 <footer>
+  <div class="metrics">
+    <div class="metric">
+      <div>Words</div>
+      <div>{{ words_metric }}</div>
+    </div>
+    <div class="metric">
+      <div>Connections</div>
+      <div>WIP</div>
+    </div>
+    <div class="metric">
+      <div>Shares</div>
+      <div>WIP</div>
+    </div>
+  </div>
   <div>Last updated: {{ last_updated }}</div>
 </footer>
 

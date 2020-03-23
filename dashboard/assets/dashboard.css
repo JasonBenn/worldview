@@ -1,5 +1,6 @@
 body {
     line-height: 1.5;
+    text-align: center;
 }
 
 .node {
@@ -35,6 +36,10 @@ br, hr, footer {
     clear: both;
 }
 
+.container {
+    height: 100vh;
+}
+
 section {
     border-bottom: 2px solid black;
     padding: 1em 0;
@@ -42,17 +47,27 @@ section {
 }
 
 .questions {
-    height: 15vh;
+    height: 15%;
 }
 
 .notes {
-    height: 58vh;
+    height: 60%;
 }
 
 .references {
-    height: 8vh;
+    height: 8%;
 }
 
 .posts {
-    height: 8vh;
+    height: 8%;
+}
+
+footer {
+    height: 3%
+}
+
+.metrics {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
 }
