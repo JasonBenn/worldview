@@ -69,7 +69,7 @@ def get_words_metric():
     """
     words_by_day = parse_metrics_file(WORD_COUNT_FILEPATH)
     score = mean([b - a for a, b in window(words_by_day.values())]) / 100
-    return min(round(score, 1), 5)
+    return min(round(score, 1), 5.)
 
 
 def get_connections_metric():
@@ -91,6 +91,9 @@ def get_shares_metric():
     0: less
     """
     shares_by_day = parse_metrics_file(NUM_SHARES_FILEPATH)
+    if len(shares_by_day) < 2:
+        return 0.
+
     score = mean([b - a for a, b in window(shares_by_day.values())])
     return round(np.interp(score, [0, 1/14, 1/7, 0.25, 0.5, 1], [0, 1, 2, 3, 4, 5]), 1)
 
