@@ -6,18 +6,19 @@
         content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="ie=edge">
   <title>Dashboard</title>
-  <link rel="stylesheet" href="dashboard.css">
+  <link rel="stylesheet" href="assets/dashboard.css">
 </head>
 <body>
 
-sup
-{{ test_value }}
+{% for note, note_data in notes %}
+  <div class="note">{{ note_data.num_edges }} {{ note }}</div>
+{% endfor %}
 
 <footer>
   <div>Last updated: {{ last_updated }}</div>
 </footer>
 
-<script type="text/javascript" src="http://livejs.com/live.js"></script>
+<script type="text/javascript" src="assets/live.js"></script>
 
 </body>
 </html>

@@ -4,3 +4,6 @@ token_v2
 __pycache__
 scratch.py
 .env
+data
+ME_README.md
+dashboard/index.html
