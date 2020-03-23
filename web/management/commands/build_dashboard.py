@@ -35,6 +35,7 @@ def window(seq, n=2):
 
 LINK_REGEX = re.compile('(?:\[\[.*\]\]|#[\w\d]+)')
 WORD_COUNT_FILEPATH = "dashboard/word_counts.txt"
+NUM_EDGES_FILEPATH = "dashboard/num_edges.txt"
 
 
 def parse_links(string: str) -> List[str]:
@@ -42,15 +43,32 @@ def parse_links(string: str) -> List[str]:
     return [x.lstrip('#').lstrip('[[').rstrip("]]") for x in matches]
 
 
+def parse_metrics_file(filename):
+    lines = [x.rsplit(' ', 1) for x in open(filename, 'r').read().split('\n')]
+    one_week_ago = date.today() - timedelta(days=7)
+    words_by_day = {
+        parse(date_str).date(): int(word_count) for date_str, word_count in lines if
+        parse(date_str).date() >= one_week_ago
+    }
+    return words_by_day
+
+
 def get_words_metric():
     """
-    5 is 500+ words per day. 4 is 400+ words per day, etc
+    5 is 500+ words per day. 4 is 400+, etc
     """
-    lines = [x.rsplit(' ', 1) for x in open(WORD_COUNT_FILEPATH, 'r').read().split('\n')]
-    one_week_ago = date.today() - timedelta(days=7)
-    words_by_day = {parse(date_str).date(): int(word_count) for date_str, word_count in lines if parse(date_str).date() >= one_week_ago}
+    words_by_day = parse_metrics_file(WORD_COUNT_FILEPATH)
     score = mean([b - a for a, b in window(words_by_day.values())]) // 100
     return min(int(score), 5)
+
+
+def get_connections_metric():
+    """
+    5 is 5+ connections per day. 4 is 4+, etc
+    """
+    edges_by_day = parse_metrics_file(NUM_EDGES_FILEPATH)
+    score = mean([b - a for a, b in window(edges_by_day.values())])
+    return min(round(score, 1), 5)
 
 
 class Command(BaseCommand):
@@ -75,6 +93,7 @@ class Command(BaseCommand):
                 if len(metadata):
                     graph.add_node(page['title'], data=page, type=page_type)
 
+        num_edges = 0
         word_count = 0
 
         # Add information to nodes
@@ -86,13 +105,18 @@ class Command(BaseCommand):
             links = flatten([parse_links(x['string']) for x in dfs(data['data'])])
             for link in [x for x in links if graph.has_node(x)]:
                 graph.add_edge(link, title)
+                num_edges += 1
 
             # Word count
             word_count += sum([len(x['string']) for x in dfs(data['data'])])
 
+        # Save num_edges
+        with open(NUM_EDGES_FILEPATH, "a") as f:
+            f.write(f"\n{datetime.today()} {num_edges}")
+
         # Save word count
         with open(WORD_COUNT_FILEPATH, "a") as f:
-            f.write(f"{datetime.today()} {word_count}")
+            f.write(f"\n{datetime.today()} {word_count}")
 
         # Count edges
         for title, data in graph.nodes(data=True):
@@ -115,5 +139,6 @@ class Command(BaseCommand):
                 notes=notes,
                 posts=posts,
                 words_metric=get_words_metric(),
+                connections_metric=get_connections_metric(),
                 last_updated=last_updated
             ))
