@@ -10,7 +10,9 @@ body {
     border-color: hsla(0, 0%, 0%, 0.5);
     border-radius: 5px;
     float: left;
-    max-width: 500px;
+    max-width: 45vw;
+    max-height: 3.15em;
+    overflow: hidden;
 }
 
 .edges-1 {
@@ -43,6 +45,10 @@ section {
     height: 15vh;
 }
 
+.notes {
+    height: 58vh;
+}
+
 .references {
     height: 8vh;
 }
@@ -50,4 +56,3 @@ section {
 .posts {
     height: 8vh;
 }
-
