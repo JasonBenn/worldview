@@ -10,35 +10,33 @@
 </head>
 <body>
 
-<div class="container">
-  <section class="questions">
-    {% for node, data in questions %}
-      <div class="node edges-{{ data.num_edges }}">{{ node }}</div>
-    {% endfor %}
-    <br>
-  </section>
-  <section class="references">
-    {% for node, data in references %}
-      <div class="node edges-{{ data.num_edges }}">{{ node }}</div>
-    {% endfor %}
-    <br>
-  </section>
-  <section class="notes">
-    {% for node, data in notes %}
-      <div class="node edges-{{ data.num_edges }}">{{ node }}</div>
-    {% endfor %}
-    <br>
-  </section>
-  <section class="posts">
-    {% for node, data in posts %}
-      <div class="node edges-{{ data.num_edges }}">{{ node }}</div>
-    {% endfor %}
-    <br>
-  </section>
-</div>
+<section class="questions">
+  {% for node, data in questions %}
+    <div class="node edges-{{ data.num_edges }}">{{ node }}</div>
+  {% endfor %}
+  <br>
+</section>
+<section class="references">
+  {% for node, data in references %}
+    <div class="node edges-{{ data.num_edges }}">{{ node }}</div>
+  {% endfor %}
+  <br>
+</section>
+<section class="notes">
+  {% for node, data in notes %}
+    <div class="node edges-{{ data.num_edges }}">{{ node }}</div>
+  {% endfor %}
+  <br>
+</section>
+<section class="posts">
+  {% for node, data in posts %}
+    <div class="node edges-{{ data.num_edges }}">{{ node }}</div>
+  {% endfor %}
+  <br>
+</section>
 
-<footer>
-  <div class="metrics">
+<section class="metrics">
+  <div class="flex">
     <div class="metric">
       <div>Words</div>
       <div>{{ words_metric }}</div>
@@ -53,7 +51,7 @@
     </div>
   </div>
   <div>Last updated: {{ last_updated }}</div>
-</footer>
+</section>
 
 <script type="text/javascript" src="assets/live.js"></script>
 

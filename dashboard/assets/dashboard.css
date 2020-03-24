@@ -1,13 +1,15 @@
 body {
     line-height: 1.5;
     text-align: center;
+    font-family: 'Open Sans', sans-serif;
+    color: #333;
 }
 
 .node {
     padding: .25em .5em;
     border-radius: .5em;
     margin: .25em .5em;
-    border: 1px solid #333;
+    border: 1px solid #999;
     border-color: hsla(0, 0%, 0%, 0.5);
     border-radius: 5px;
     float: left;
@@ -36,38 +38,45 @@ br, hr, footer {
     clear: both;
 }
 
-.container {
-    height: 100vh;
+body {
+    margin: 0 1em;
+    display: flex;
+    flex-direction: column;
 }
 
 section {
-    border-bottom: 2px solid black;
-    padding: 1em 0;
     overflow: scroll;
+    padding: 1.5em 0;
+}
+
+section + section {
+    border-top: 2px solid lightgrey;
+}
+
+body {
+    height: 100vh;
 }
 
 .questions {
-    height: 15%;
-}
-
-.notes {
-    height: 60%;
+    flex-grow: 1;
 }
 
 .references {
-    height: 8%;
+}
+
+.notes {
+    flex-grow: 1;
 }
 
 .posts {
-    height: 8%;
 }
 
 footer {
-    height: 3%
 }
 
-.metrics {
+.flex {
     display: flex;
+    flex-direction: row;
     justify-content: space-around;
     align-items: center;
 }
