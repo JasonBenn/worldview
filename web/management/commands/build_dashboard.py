@@ -2,6 +2,7 @@ import json
 import os
 import re
 from datetime import date, datetime, timedelta
+from enum import Enum
 from itertools import islice
 from statistics import mean
 from typing import List
@@ -13,6 +14,23 @@ from django.core.management import BaseCommand
 from django.utils.functional import partition
 from jinja2 import Template
 from networkx import Graph
+
+
+class Tags(Enum):
+    QUESTION = 'Question'
+    REFERENCE = 'Reference'
+    NOTE = 'Note'
+    POST = 'Post'
+    SHARES = 'Shares'
+
+
+class Filepaths(Enum):
+    INDEX_HTML = "dashboard/index.html"
+    WORD_COUNT_FILEPATH = "dashboard/word_counts.txt"
+    NUM_EDGES_FILEPATH = "dashboard/num_edges.txt"
+    NUM_SHARES_FILEPATH = "dashboard/num_shares.txt"
+    BACKUP_JSON = "data/roam-backup/jason.json"
+    DASHBOARD_HTML = 'web/templates/dashboard.html'
 
 
 def dfs(node):
@@ -35,9 +53,6 @@ def window(seq, n=2):
 
 
 LINK_REGEX = re.compile('(?:\[\[.*\]\]|#[\w\d]+)')
-WORD_COUNT_FILEPATH = "dashboard/word_counts.txt"
-NUM_EDGES_FILEPATH = "dashboard/num_edges.txt"
-NUM_SHARES_FILEPATH = "dashboard/num_shares.txt"
 
 
 def parse_links(string: str) -> List[str]:
@@ -67,7 +82,7 @@ def get_words_metric():
     """
     5 is 500+ words per day. 4 is 400+, etc
     """
-    words_by_day = parse_metrics_file(WORD_COUNT_FILEPATH)
+    words_by_day = parse_metrics_file(Filepaths.WORD_COUNT_FILEPATH.value)
     score = mean([b - a for a, b in window(words_by_day.values())]) / 100
     return min(round(score, 1), 5.)
 
@@ -76,7 +91,7 @@ def get_connections_metric():
     """
     5 is 5+ connections per day. 4 is 4+, etc
     """
-    edges_by_day = parse_metrics_file(NUM_EDGES_FILEPATH)
+    edges_by_day = parse_metrics_file(Filepaths.NUM_EDGES_FILEPATH.value)
     score = mean([b - a for a, b in window(edges_by_day.values())])
     return min(round(score, 1), 5)
 
@@ -90,7 +105,7 @@ def get_shares_metric():
     1: 1 share / 2 weeks
     0: less
     """
-    shares_by_day = parse_metrics_file(NUM_SHARES_FILEPATH)
+    shares_by_day = parse_metrics_file(Filepaths.NUM_SHARES_FILEPATH.value)
     if len(shares_by_day) < 2:
         return 0.
 
@@ -100,8 +115,7 @@ def get_shares_metric():
 
 class Command(BaseCommand):
     def handle(self, *args, **kwargs):
-        backup_filepath = "data/roam-backup/jason.json"
-        pages = json.loads(open(backup_filepath, "r").read())
+        pages = json.loads(open(Filepaths.BACKUP_JSON.value, "r").read())
         graph = Graph()
 
         # Create nodes
@@ -109,8 +123,8 @@ class Command(BaseCommand):
             if not ('children' in page and len(page['children'])):
                 continue
 
-            for page_type in ["Question", "Reference", "Note", "Post"]:
-                matches = [x for x in page['children'] if '#' + page_type in x['string']]
+            for page_type in [Tags.QUESTION.value, Tags.REFERENCE.value, Tags.NOTE.value, Tags.POST.value]:
+                matches = [x for x in page['children'] if f'#{page_type}' in x['string']]
 
                 content, metadata = partition(lambda x: '::' in x['string'], matches)
 
@@ -139,19 +153,18 @@ class Command(BaseCommand):
             word_count += sum([len(x['string']) for x in dfs(data['data'])])
 
             # Shares
-            num_shares += len(flatten([parse_shares(x['string']) for x in dfs(data['data']) if "Sharing::" in x['string']]))
-
+            num_shares += len(flatten([parse_shares(x['string']) for x in dfs(data['data']) if f"{Tags.SHARES.value}::" in x['string']]))
 
         # Save num_edges
-        with open(NUM_EDGES_FILEPATH, "a") as f:
+        with open(Filepaths.NUM_EDGES_FILEPATH.value, "a") as f:
             f.write(f"\n{datetime.today()} {num_edges}")
 
         # Save word count
-        with open(WORD_COUNT_FILEPATH, "a") as f:
+        with open(Filepaths.WORD_COUNT_FILEPATH.value, "a") as f:
             f.write(f"\n{datetime.today()} {word_count}")
 
         # Save shares
-        with open(NUM_SHARES_FILEPATH, "a") as f:
+        with open(Filepaths.NUM_SHARES_FILEPATH.value, "a") as f:
             f.write(f"\n{datetime.today()} {num_shares}")
 
         # Count edges
@@ -160,15 +173,15 @@ class Command(BaseCommand):
 
         # Build index.html
         nodes = list(graph.nodes(data=True))
-        questions = [(title, data) for title, data in nodes if data['type'] == 'Question']
-        references = [(title, data) for title, data in nodes if data['type'] == 'Reference']
-        notes = [(title, data) for title, data in nodes if data['type'] == 'Note']
-        posts = [(title, data) for title, data in nodes if data['type'] == 'Post']
+        questions = [(title, data) for title, data in nodes if data['type'] == Tags.QUESTION.value]
+        references = [(title, data) for title, data in nodes if data['type'] == Tags.REFERENCE.value]
+        notes = [(title, data) for title, data in nodes if data['type'] == Tags.NOTE.value]
+        posts = [(title, data) for title, data in nodes if data['type'] == Tags.POST.value]
 
-        template = Template(open('web/templates/dashboard.html').read())
-        last_updated = datetime.fromtimestamp(os.path.getmtime(backup_filepath))
+        template = Template(open(Filepaths.DASHBOARD_HTML.value).read())
+        last_updated = datetime.fromtimestamp(os.path.getmtime(Filepaths.BACKUP_JSON.value))
 
-        with open("dashboard/index.html", "w") as f:
+        with open(Filepaths.INDEX_HTML.value, "w") as f:
             f.write(template.render(
                 questions=questions,
                 references=references,
