@@ -1,3 +1,5 @@
+import sys
+import glob
 import json
 import os
 import re
@@ -29,16 +31,8 @@ class Filepaths(Enum):
     WORD_COUNT_FILEPATH = "dashboard/word_counts.txt"
     NUM_EDGES_FILEPATH = "dashboard/num_edges.txt"
     NUM_SHARES_FILEPATH = "dashboard/num_shares.txt"
-    BACKUP_JSON = "data/roam-backup/jason.json"
+    BACKUP_DIR = "data/roam-backup/*"
     DASHBOARD_HTML = 'web/templates/dashboard.html'
-
-
-def dfs(node):
-    if 'children' not in node:
-        return
-    yield from node['children']
-    for child in node['children']:
-        yield from dfs(child)
 
 
 def window(seq, n=2):
@@ -115,24 +109,27 @@ def get_shares_metric():
 
 class Command(BaseCommand):
     def handle(self, *args, **kwargs):
-        pages = json.loads(open(Filepaths.BACKUP_JSON.value, "r").read())
+        pages = {os.path.basename(x).rstrip('.md'): open(x, 'r').read() for x in glob.glob(Filepaths.BACKUP_DIR.value)}
         graph = Graph()
 
         # Create nodes
-        for page in pages:
-            if not ('children' in page and len(page['children'])):
+        for page_title, page in pages.items():
+            lines = squeeze(page.split('\n'))
+            if not len(lines):
                 continue
 
             for page_type in [Tags.QUESTION.value, Tags.REFERENCE.value, Tags.NOTE.value, Tags.POST.value]:
-                matches = [x for x in page['children'] if f'#{page_type}' in x['string']]
+                matches = [x for x in lines if f'#{page_type}' in x]
 
-                content, metadata = partition(lambda x: '::' in x['string'], matches)
+                content, metadata = partition(lambda x: '::' in x, matches)
 
                 for line in content:
-                    graph.add_node(line['string'], type=page_type, word_count=len(line['string']))
+                    # This node is a single line.
+                    graph.add_node(line.strip().lstrip('- '), type=page_type, word_count=len(line.split(' ')))
 
                 if len(metadata):
-                    graph.add_node(page['title'], data=page, type=page_type)
+                    # This node is a page.
+                    graph.add_node(page_title, lines=lines, type=page_type)
 
         num_edges = 0
         word_count = 0
@@ -140,20 +137,20 @@ class Command(BaseCommand):
 
         # Add information to nodes
         for title, data in graph.nodes(data=True):
-            if 'data' not in data:
+            if 'lines' not in data:
                 continue
 
             # Edges
-            links = flatten([parse_links(x['string']) for x in dfs(data['data'])])
+            links = flatten([parse_links(x) for x in data['lines']])
             for link in [x for x in links if graph.has_node(x)]:
                 graph.add_edge(link, title)
                 num_edges += 1
 
             # Word count
-            word_count += sum([len(x['string']) for x in dfs(data['data'])])
+            word_count += sum([len(x.split(' ')) for x in data['lines']])  # TODO FIXME
 
             # Shares
-            num_shares += len(flatten([parse_shares(x['string']) for x in dfs(data['data']) if f"{Tags.SHARES.value}::" in x['string']]))
+            num_shares += len(flatten([parse_shares(x) for x in data['lines'] if f"{Tags.SHARES.value}::" in x]))
 
         # Save num_edges
         with open(Filepaths.NUM_EDGES_FILEPATH.value, "a") as f:
@@ -179,7 +176,7 @@ class Command(BaseCommand):
         posts = [(title, data) for title, data in nodes if data['type'] == Tags.POST.value]
 
         template = Template(open(Filepaths.DASHBOARD_HTML.value).read())
-        last_updated = datetime.fromtimestamp(os.path.getmtime(Filepaths.BACKUP_JSON.value))
+        last_updated = datetime.fromtimestamp(os.path.getmtime(glob.glob(Filepaths.BACKUP_DIR.value)[0]))
 
         with open(Filepaths.INDEX_HTML.value, "w") as f:
             f.write(template.render(
