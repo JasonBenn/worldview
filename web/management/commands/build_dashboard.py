@@ -1,6 +1,4 @@
-import sys
 import glob
-import json
 import os
 import re
 from datetime import date, datetime, timedelta
@@ -26,13 +24,17 @@ class Tags(Enum):
     SHARES = 'Shares'
 
 
+BASE_DIR = "/Users/jasonbenn/code/worldview/"
+
+
 class Filepaths(Enum):
-    INDEX_HTML = "dashboard/index.html"
-    WORD_COUNT_FILEPATH = "dashboard/word_counts.txt"
-    NUM_EDGES_FILEPATH = "dashboard/num_edges.txt"
-    NUM_SHARES_FILEPATH = "dashboard/num_shares.txt"
-    BACKUP_DIR = "data/roam-backup/*"
-    DASHBOARD_HTML = 'web/templates/dashboard.html'
+    INDEX_HTML = BASE_DIR + "dashboard/index.html"
+    WORD_COUNT_FILEPATH = BASE_DIR + "dashboard/word_counts.txt"
+    NUM_EDGES_FILEPATH = BASE_DIR + "dashboard/num_edges.txt"
+    NUM_SHARES_FILEPATH = BASE_DIR + "dashboard/num_shares.txt"
+    BACKUP_DIR = BASE_DIR + "data/roam-backup/*"
+    DASHBOARD_HTML = BASE_DIR + 'web/templates/dashboard.html'
+    LAST_BUILT = BASE_DIR + 'data/dashboard_built_at.txt'
 
 
 def window(seq, n=2):
@@ -109,6 +111,7 @@ def get_shares_metric():
 
 class Command(BaseCommand):
     def handle(self, *args, **kwargs):
+        print(datetime.today(), "Building dashboard...")
         pages = {os.path.basename(x).rstrip('.md'): open(x, 'r').read() for x in glob.glob(Filepaths.BACKUP_DIR.value)}
         graph = Graph()
 
@@ -187,5 +190,7 @@ class Command(BaseCommand):
                 words_metric=get_words_metric(),
                 connections_metric=get_connections_metric(),
                 shares_metric=get_shares_metric(),
-                last_updated=last_updated
+                last_updated=last_updated,
+                last_built=open(Filepaths.LAST_BUILT.value).read()
             ))
+        print(datetime.today(), "Done building dashboard!")

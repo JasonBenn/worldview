@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+    <dict>
+        <key>Label</key>
+        <string>worldview_dashboard</string>
+
+        <key>ProgramArguments</key>
+        <array>
+            <string>/Users/jasonbenn/.pyenv/versions/3.6.4/envs/worldview/bin/python</string>
+            <string>-m</string>
+            <string>http.server</string>
+            <string>8245</string>
+        </array>
+
+        <key>RunAtLoad</key>
+        <true/>
+
+        <key>StandardErrorPath</key>
+        <string>/tmp/local.worldview.dashboard_server.stderr</string>
+
+        <key>StandardOutPath</key>
+        <string>/tmp/local.worldview.dashboard_server.stdout</string>
+
+        <key>WorkingDirectory</key>
+        <string>/Users/jasonbenn/code/worldview</string>
+    </dict>
+</plist>
