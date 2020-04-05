@@ -6,7 +6,9 @@ from enum import Enum
 from itertools import islice
 from statistics import mean
 from typing import List
+from uuid import UUID
 
+import attr
 import numpy as np
 from dateutil.parser import parse
 from django.contrib.admin.utils import flatten
@@ -22,8 +24,15 @@ class Tags(Enum):
     NOTE = 'Note'
     POST = 'Post'
     SHARES = 'Shares'
+    FLASHCARD = 'Flashcard'
 
 
+LINK_REGEX = re.compile(r'(?:\[\[.*\]\]|#[\w\d]+)')
+BULLET_REGEX_STR = r'^\s*- '
+BULLET_REGEX = re.compile(BULLET_REGEX_STR)
+TWO_SIDED_FLASHCARD_FRONT_REGEX = re.compile(BULLET_REGEX_STR + r"(.*)#" + Tags.FLASHCARD.value + " ([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:: )?(.*)", re.I | re.DOTALL)
+TWO_SIDED_FLASHCARD_BACK_REGEX = re.compile(BULLET_REGEX_STR + r"(.*)", re.DOTALL)
+CLOZE_FLASHCARD_REGEX = re.compile(r"\{(.*)\}", re.I | re.DOTALL)
 BASE_DIR = "/Users/jasonbenn/code/worldview/"
 
 
@@ -46,9 +55,6 @@ def window(seq, n=2):
     for elem in it:
         result = result[1:] + (elem,)
         yield result
-
-
-LINK_REGEX = re.compile('(?:\[\[.*\]\]|#[\w\d]+)')
 
 
 def parse_links(string: str) -> List[str]:
@@ -109,11 +115,34 @@ def get_shares_metric():
     return round(np.interp(score, [0, 1/14, 1/7, 0.25, 0.5, 1], [0, 1, 2, 3, 4, 5]), 1)
 
 
+@attr.s
+class Flashcard:
+    uuid: UUID = attr.ib()
+    front: str = attr.ib()
+    back: str = attr.ib()
+
+
+def get_bulleted_lines(lines: List[str]):
+    bulleted_lines = []
+    max_index = len(lines)
+    bulleted_indexes_generator = (i for i, x in enumerate(lines) if re.match(BULLET_REGEX, x))
+    prev_index = next(bulleted_indexes_generator, max_index)
+
+    while prev_index != max_index:
+        next_index = next(bulleted_indexes_generator, max_index)
+        bulleted_line = '\n'.join(lines[prev_index:next_index])
+        bulleted_lines.append(bulleted_line)
+        prev_index = next_index
+
+    return bulleted_lines
+
+
 class Command(BaseCommand):
     def handle(self, *args, **kwargs):
         print(datetime.today(), "Building dashboard...")
-        pages = {os.path.basename(x).rstrip('.md'): open(x, 'r').read() for x in glob.glob(Filepaths.BACKUP_DIR.value)}
+        pages = {os.path.basename(x).rstrip('.md'): open(x, 'r').read() for x in glob.glob(Filepaths.BACKUP_DIR.value) if os.path.isfile(x)}
         graph = Graph()
+        flashcards: List[Flashcard] = []
 
         # Create nodes
         for page_title, page in pages.items():
@@ -133,6 +162,35 @@ class Command(BaseCommand):
                 if len(metadata):
                     # This node is a page.
                     graph.add_node(page_title, lines=lines, type=page_type)
+
+            # Find flashcards
+            bulleted_lines = get_bulleted_lines(lines)
+            num_bulleted_lines = len(bulleted_lines)
+            for i, line in enumerate(bulleted_lines):
+                if f"#{Tags.FLASHCARD.value}" in line:
+                    print(line)
+                    is_num_lines_long_enough = i + 1 < num_bulleted_lines
+                    well_formatted_flashcard_front = re.match(TWO_SIDED_FLASHCARD_FRONT_REGEX, line)
+                    is_cloze = re.findall(CLOZE_FLASHCARD_REGEX, line)
+
+                    if is_cloze:
+                        print("TODO: cloze cards", line)
+                        continue
+
+                    if not is_num_lines_long_enough or not well_formatted_flashcard_front:
+                        print(f"Flashcard front improperly formatted: {line}")
+                        continue
+
+                    next_line = bulleted_lines[i + 1]
+                    next_line_is_indented = re.match(BULLET_REGEX, line).span()[1] < re.match(BULLET_REGEX, next_line).span()[1]
+
+                    if next_line_is_indented:
+                        front_1, flashcard_uuid, front_2 = well_formatted_flashcard_front.groups()
+                        front = (front_1.strip() + " " + front_2.strip()).strip()
+                        back = re.match(TWO_SIDED_FLASHCARD_BACK_REGEX, next_line).group(1).strip()
+                        flashcards.append(Flashcard(uuid=flashcard_uuid, front=front, back=back))
+                    else:
+                        print(f"Flashcard improperly formatted (next line not indented): {line}\n{next_line}")
 
         num_edges = 0
         word_count = 0
