@@ -1,6 +1,8 @@
 import glob
+import json
 import os
 import re
+import time
 from datetime import date, datetime, timedelta
 from enum import Enum
 from itertools import islice
@@ -16,6 +18,9 @@ from django.core.management import BaseCommand
 from django.utils.functional import partition
 from jinja2 import Template
 from networkx import Graph
+import urllib.request
+import urllib.parse as urlparse
+from urllib.parse import unquote
 
 
 class Tags(Enum):
@@ -30,10 +35,11 @@ class Tags(Enum):
 LINK_REGEX = re.compile(r'(?:\[\[.*\]\]|#[\w\d]+)')
 BULLET_REGEX_STR = r'^\s*- '
 BULLET_REGEX = re.compile(BULLET_REGEX_STR)
-TWO_SIDED_FLASHCARD_FRONT_REGEX = re.compile(BULLET_REGEX_STR + r"(.*)#" + Tags.FLASHCARD.value + " ([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:: )?(.*)", re.I | re.DOTALL)
-TWO_SIDED_FLASHCARD_BACK_REGEX = re.compile(BULLET_REGEX_STR + r"(.*)", re.DOTALL)
-CLOZE_FLASHCARD_REGEX = re.compile(r"\{(.*)\}", re.I | re.DOTALL)
+SANS_BULLET_REGEX = re.compile(BULLET_REGEX_STR + r"(.*)", re.DOTALL)
+FLASHCARD_FRONT_REGEX = re.compile(BULLET_REGEX_STR + r"(.*)#" + Tags.FLASHCARD.value + " ([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:: )?(.*)", re.I | re.DOTALL)
+CLOZE_REGEX = re.compile(r"\{(.*?)\}", re.DOTALL)
 BASE_DIR = "/Users/jasonbenn/code/worldview/"
+MD_IMAGE_REGEX = re.compile('!\[.*?\]\((.*?)\)')
 
 
 class Filepaths(Enum):
@@ -66,9 +72,9 @@ def parse_shares(string: str) -> List[str]:
     return [x for x in string.split(' ') if 'http' in x]
 
 
-def parse_metrics_file(filename):
-    lines = [x.rsplit(' ', 1) for x in open(filename, 'r').read().split('\n')]
-    one_week_ago = date.today() - timedelta(days=7)
+def parse_metrics_file(filename, days_ago=7):
+    lines = [x.rsplit(' ', 1) for x in open(filename, 'r').read().split('\n') if x]
+    one_week_ago = date.today() - timedelta(days=days_ago)
     words_by_day = {
         parse(date_str).date(): int(word_count) for date_str, word_count in lines if
         parse(date_str).date() >= one_week_ago
@@ -85,7 +91,10 @@ def get_words_metric():
     5 is 500+ words per day. 4 is 400+, etc
     """
     words_by_day = parse_metrics_file(Filepaths.WORD_COUNT_FILEPATH.value)
-    score = mean([b - a for a, b in window(words_by_day.values())]) / 100
+    data_points = [b - a for a, b in window(words_by_day.values())]
+    if not len(data_points):
+        return 0
+    score = mean(data_points) / 100
     return min(round(score, 1), 5.)
 
 
@@ -94,7 +103,10 @@ def get_connections_metric():
     5 is 5+ connections per day. 4 is 4+, etc
     """
     edges_by_day = parse_metrics_file(Filepaths.NUM_EDGES_FILEPATH.value)
-    score = mean([b - a for a, b in window(edges_by_day.values())])
+    data_points = [b - a for a, b in window(edges_by_day.values())]
+    if not len(data_points):
+        return 0
+    score = mean(data_points)
     return min(round(score, 1), 5)
 
 
@@ -110,16 +122,86 @@ def get_shares_metric():
     shares_by_day = parse_metrics_file(Filepaths.NUM_SHARES_FILEPATH.value)
     if len(shares_by_day) < 2:
         return 0.
-
-    score = mean([b - a for a, b in window(shares_by_day.values())])
+    data_points = [b - a for a, b in window(shares_by_day.values())]
+    if not len(data_points):
+        return 0
+    score = mean(data_points)
     return round(np.interp(score, [0, 1/14, 1/7, 0.25, 0.5, 1], [0, 1, 2, 3, 4, 5]), 1)
 
 
 @attr.s
-class Flashcard:
+class AnkiFlashcard:
     uuid: UUID = attr.ib()
     front: str = attr.ib()
+
+    def to_add_note_json(self, deck_name):
+        raise NotImplementedError
+
+    def to_update_note_fields_json(self, anki_id):
+        raise NotImplementedError
+
+    @staticmethod
+    def maybe_download_media_files_and_convert(content: str) -> str:
+        for url in re.findall(MD_IMAGE_REGEX, content):
+            roam_filename = unquote(urlparse.urlparse(url).path.split('/')[-1]).split('/')[-1]
+            if not make_anki_request('retrieveMediaFile', filename=roam_filename):
+                make_anki_request('storeMediaFile', filename=roam_filename, url=url)
+            content = re.sub(MD_IMAGE_REGEX, f'<img src="{roam_filename}">', content, 1)
+        return content
+
+
+@attr.s
+class TwoSidedFlashcard(AnkiFlashcard):
     back: str = attr.ib()
+
+    def to_add_note_json(self, deck_name):
+        return {
+            "deckName": deck_name,
+            "modelName": "Basic with ID",
+            "fields": {
+                "ID": self.uuid,
+                "Front": self.front,
+                "Back": self.back
+            },
+            "tags": []
+        }
+
+    def to_update_note_fields_json(self, anki_id):
+        return {
+            "id": anki_id,
+            "modelName": "Basic with ID",
+            "fields": {
+                "ID": self.uuid,
+                "Front": self.front,
+                "Back": self.back
+            },
+            "tags": []
+        }
+
+
+@attr.s
+class ClozeFlashcard(AnkiFlashcard):
+    def to_add_note_json(self, deck_name):
+        return {
+            "deckName": deck_name,
+            "modelName": "Cloze with ID",
+            "fields": {
+                "ID": self.uuid,
+                "Text": self.front,
+            },
+            "tags": []
+        }
+
+    def to_update_note_fields_json(self, anki_id):
+        return {
+            "id": anki_id,
+            "modelName": "Cloze with ID",
+            "fields": {
+                "ID": self.uuid,
+                "Text": self.front,
+            },
+            "tags": []
+        }
 
 
 def get_bulleted_lines(lines: List[str]):
@@ -137,12 +219,30 @@ def get_bulleted_lines(lines: List[str]):
     return bulleted_lines
 
 
+def make_anki_request(action, **params):
+    request_json = json.dumps({'action': action, 'params': params, 'version': 6}).encode('utf-8')
+    try:
+        response = json.load(urllib.request.urlopen(urllib.request.Request('http://localhost:8765', request_json)))
+    except urllib.error.URLError:
+        raise ValueError("Anki must be running and AnkiConnect must be installed.")
+
+    if len(response) != 2:
+        raise Exception('response has an unexpected number of fields')
+    if 'error' not in response:
+        raise Exception('response is missing required error field')
+    if 'result' not in response:
+        raise Exception('response is missing required result field')
+    if response['error'] is not None:
+        raise Exception(response['error'])
+    return response['result']
+
+
 class Command(BaseCommand):
     def handle(self, *args, **kwargs):
         print(datetime.today(), "Building dashboard...")
         pages = {os.path.basename(x).rstrip('.md'): open(x, 'r').read() for x in glob.glob(Filepaths.BACKUP_DIR.value) if os.path.isfile(x)}
         graph = Graph()
-        flashcards: List[Flashcard] = []
+        flashcards: List[AnkiFlashcard] = []
 
         # Create nodes
         for page_title, page in pages.items():
@@ -168,29 +268,66 @@ class Command(BaseCommand):
             num_bulleted_lines = len(bulleted_lines)
             for i, line in enumerate(bulleted_lines):
                 if f"#{Tags.FLASHCARD.value}" in line:
-                    print(line)
-                    is_num_lines_long_enough = i + 1 < num_bulleted_lines
-                    well_formatted_flashcard_front = re.match(TWO_SIDED_FLASHCARD_FRONT_REGEX, line)
-                    is_cloze = re.findall(CLOZE_FLASHCARD_REGEX, line)
-
-                    if is_cloze:
-                        print("TODO: cloze cards", line)
-                        continue
-
-                    if not is_num_lines_long_enough or not well_formatted_flashcard_front:
+                    well_formatted_flashcard = re.match(FLASHCARD_FRONT_REGEX, line)
+                    if not well_formatted_flashcard:
                         print(f"Flashcard front improperly formatted: {line}")
                         continue
 
+                    front_1, flashcard_uuid, front_2 = well_formatted_flashcard.groups()
+                    front = (front_1.strip() + " " + front_2.strip()).strip()
+
+                    # Handle Cloze-style flashcards
+                    is_cloze = re.search(CLOZE_REGEX, front)
+                    if is_cloze:
+                        front = re.sub(CLOZE_REGEX, lambda x: "{{c1::" + x.group(1) + "}}", front)
+                        front = AnkiFlashcard.maybe_download_media_files_and_convert(front)
+                        flashcards.append(ClozeFlashcard(uuid=flashcard_uuid, front=front))
+                        continue
+
+                    is_num_lines_long_enough = i + 1 < num_bulleted_lines
+                    if not is_num_lines_long_enough:
+                        print(f"Flashcard is missing a back: {line}")
+                        continue
+
+                    # Handle two-sided flashcards
                     next_line = bulleted_lines[i + 1]
                     next_line_is_indented = re.match(BULLET_REGEX, line).span()[1] < re.match(BULLET_REGEX, next_line).span()[1]
-
                     if next_line_is_indented:
-                        front_1, flashcard_uuid, front_2 = well_formatted_flashcard_front.groups()
-                        front = (front_1.strip() + " " + front_2.strip()).strip()
-                        back = re.match(TWO_SIDED_FLASHCARD_BACK_REGEX, next_line).group(1).strip()
-                        flashcards.append(Flashcard(uuid=flashcard_uuid, front=front, back=back))
-                    else:
-                        print(f"Flashcard improperly formatted (next line not indented): {line}\n{next_line}")
+                        back = re.match(SANS_BULLET_REGEX, next_line).group(1).strip()
+                        front = AnkiFlashcard.maybe_download_media_files_and_convert(front)
+                        back = AnkiFlashcard.maybe_download_media_files_and_convert(back)
+                        flashcards.append(TwoSidedFlashcard(uuid=flashcard_uuid, front=front, back=back))
+                        continue
+
+                    print(f"Flashcard improperly formatted (next line not indented): {line}\n{next_line}")
+
+        try:
+            make_anki_request('sync')
+            deck_name = next(x for x in make_anki_request('deckNames') if 'roam' in x.lower())
+        except Exception:
+            print("Waiting on sync...")
+            time.sleep(5)
+            try:
+                make_anki_request('sync')
+                deck_name = next(x for x in make_anki_request('deckNames') if 'roam' in x.lower())
+            except Exception:
+                print("Waiting on sync...")
+                time.sleep(5)
+                make_anki_request('sync')
+                deck_name = next(x for x in make_anki_request('deckNames') if 'roam' in x.lower())
+
+        # POST flashcards to AnkiConnect
+        for flashcard in flashcards:
+            query = f"deck:{deck_name} ID:{flashcard.uuid}"
+            anki_ids = make_anki_request('findNotes', query=query)
+            if len(anki_ids) == 0:
+                make_anki_request('addNote', note=flashcard.to_add_note_json(deck_name))
+            elif len(anki_ids) == 1:
+                make_anki_request('updateNoteFields', note=flashcard.to_update_note_fields_json(anki_ids[0]))
+            else:
+                raise AssertionError(f"{len(anki_ids)} number of cards returned for query {query}")
+
+        make_anki_request('sync')
 
         num_edges = 0
         word_count = 0
@@ -214,16 +351,22 @@ class Command(BaseCommand):
             num_shares += len(flatten([parse_shares(x) for x in data['lines'] if f"{Tags.SHARES.value}::" in x]))
 
         # Save num_edges
-        with open(Filepaths.NUM_EDGES_FILEPATH.value, "a") as f:
-            f.write(f"\n{datetime.today()} {num_edges}")
+        with open(Filepaths.NUM_EDGES_FILEPATH.value, "r+") as f:
+            line = f"\n{datetime.today()} {num_edges}"
+            if line not in f.read():
+                f.write(line)
 
         # Save word count
-        with open(Filepaths.WORD_COUNT_FILEPATH.value, "a") as f:
-            f.write(f"\n{datetime.today()} {word_count}")
+        with open(Filepaths.WORD_COUNT_FILEPATH.value, "r+") as f:
+            line = f"\n{datetime.today()} {word_count}"
+            if line not in f.read():
+                f.write(line)
 
         # Save shares
-        with open(Filepaths.NUM_SHARES_FILEPATH.value, "a") as f:
-            f.write(f"\n{datetime.today()} {num_shares}")
+        with open(Filepaths.NUM_SHARES_FILEPATH.value, "r+") as f:
+            line = f"\n{datetime.today()} {num_shares}"
+            if line not in f.read():
+                f.write(line)
 
         # Count edges
         for title, data in graph.nodes(data=True):
