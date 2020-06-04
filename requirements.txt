@@ -17,3 +17,5 @@ python_dotenv==0.*
 django-polymorphic==2.*
 gensim==3.*
 nltk==3.*
+jinja2
+networkx

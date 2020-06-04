@@ -1,0 +1,1 @@
+0 10 * * * bash /home/flock/worldview/scripts/build_dashboard_on_flock.sh >> /var/log/cron.log 2>&1

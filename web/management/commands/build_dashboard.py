@@ -38,7 +38,7 @@ BULLET_REGEX = re.compile(BULLET_REGEX_STR)
 SANS_BULLET_REGEX = re.compile(BULLET_REGEX_STR + r"(.*)", re.DOTALL)
 FLASHCARD_FRONT_REGEX = re.compile(BULLET_REGEX_STR + r"(.*)#" + Tags.FLASHCARD.value + " ([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:: )?(.*)", re.I | re.DOTALL)
 CLOZE_REGEX = re.compile(r"\{(.*?)\}", re.DOTALL)
-BASE_DIR = "/Users/jasonbenn/code/worldview/"
+BASE_DIR = '/'.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))).split('/')[:-2]) + '/'
 MD_IMAGE_REGEX = re.compile('!\[.*?\]\((.*?)\)')
 
 
@@ -47,7 +47,7 @@ class Filepaths(Enum):
     WORD_COUNT_FILEPATH = BASE_DIR + "dashboard/word_counts.txt"
     NUM_EDGES_FILEPATH = BASE_DIR + "dashboard/num_edges.txt"
     NUM_SHARES_FILEPATH = BASE_DIR + "dashboard/num_shares.txt"
-    BACKUP_DIR = BASE_DIR + "data/roam-backup/*"
+    BACKUP_DIR = "/home/flock/roam-notes/markdown/*"
     DASHBOARD_HTML = BASE_DIR + 'web/templates/dashboard.html'
     LAST_BUILT = BASE_DIR + 'data/dashboard_built_at.txt'
 

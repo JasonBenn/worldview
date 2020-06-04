@@ -1,0 +1,13 @@
+[Unit]
+Description=Anki (Headless)
+
+[Service]
+Type=simple
+User=flock
+WorkingDirectory=/home/flock/worldview
+ExecStart=/bin/bash /home/flock/worldview/scripts/anki_headless.sh
+StandardOutput=syslog+console
+StandardError=syslog+console
+
+[Install]
+WantedBy=multi-user.target
