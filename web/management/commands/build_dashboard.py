@@ -6,8 +6,11 @@ import time
 from datetime import date, datetime, timedelta
 from enum import Enum
 from itertools import islice
+from re import Pattern
 from statistics import mean
 from typing import List
+from typing import Optional
+from typing import Tuple
 from uuid import UUID
 
 import attr
@@ -37,19 +40,28 @@ BULLET_REGEX_STR = r'^\s*- '
 BULLET_REGEX = re.compile(BULLET_REGEX_STR)
 SANS_BULLET_REGEX = re.compile(BULLET_REGEX_STR + r"(.*)", re.DOTALL)
 FLASHCARD_FRONT_REGEX = re.compile(BULLET_REGEX_STR + r"(.*)#" + Tags.FLASHCARD.value + " ([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:: )?(.*)", re.I | re.DOTALL)
+ANKI_DECK_TAG_REGEX = re.compile(r"(.*)\[\[Anki: (.*)\]\](.*)")
 CLOZE_REGEX = re.compile(r"\{(.*?)\}", re.DOTALL)
-BASE_DIR = '/'.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))).split('/')[:-2]) + '/'
 MD_IMAGE_REGEX = re.compile('!\[.*?\]\((.*?)\)')
 
 
+IS_PROD = False if os.uname().sysname == "Darwin" else True
+HOME_DIR = "/home/flock/" if IS_PROD else "/Users/jasonbenn/code/"
+PROJECT_DIR = HOME_DIR + "worldview/"
+DASHBOARD_DIR = PROJECT_DIR + "dashboard/"
+
+
+DEFAULT_DECK_NAME = "roam"
+
+
 class Filepaths(Enum):
-    INDEX_HTML = BASE_DIR + "dashboard/index.html"
-    WORD_COUNT_FILEPATH = BASE_DIR + "dashboard/word_counts.txt"
-    NUM_EDGES_FILEPATH = BASE_DIR + "dashboard/num_edges.txt"
-    NUM_SHARES_FILEPATH = BASE_DIR + "dashboard/num_shares.txt"
-    BACKUP_DIR = "/home/flock/roam-notes/markdown/*"
-    DASHBOARD_HTML = BASE_DIR + 'web/templates/dashboard.html'
-    LAST_BUILT = BASE_DIR + 'data/dashboard_built_at.txt'
+    INDEX_HTML = DASHBOARD_DIR + "index.html"
+    WORD_COUNT_FILEPATH = DASHBOARD_DIR + "word_counts.txt"
+    NUM_EDGES_FILEPATH = DASHBOARD_DIR + "num_edges.txt"
+    NUM_SHARES_FILEPATH = DASHBOARD_DIR + "num_shares.txt"
+    DASHBOARD_HTML = PROJECT_DIR + 'web/templates/dashboard.html'
+    LAST_BUILT = PROJECT_DIR + 'data/dashboard_built_at.txt'
+    BACKUP_DIR = HOME_DIR + "roam-notes/markdown/*"
 
 
 def window(seq, n=2):
@@ -133,8 +145,9 @@ def get_shares_metric():
 class AnkiFlashcard:
     uuid: UUID = attr.ib()
     front: str = attr.ib()
+    deck: str = attr.ib()
 
-    def to_add_note_json(self, deck_name):
+    def to_add_note_json(self):
         raise NotImplementedError
 
     def to_update_note_fields_json(self, anki_id):
@@ -154,9 +167,9 @@ class AnkiFlashcard:
 class TwoSidedFlashcard(AnkiFlashcard):
     back: str = attr.ib()
 
-    def to_add_note_json(self, deck_name):
+    def to_add_note_json(self):
         return {
-            "deckName": deck_name,
+            "deckName": self.deck,
             "modelName": "Basic with ID",
             "fields": {
                 "ID": self.uuid,
@@ -181,9 +194,9 @@ class TwoSidedFlashcard(AnkiFlashcard):
 
 @attr.s
 class ClozeFlashcard(AnkiFlashcard):
-    def to_add_note_json(self, deck_name):
+    def to_add_note_json(self):
         return {
-            "deckName": deck_name,
+            "deckName": self.deck,
             "modelName": "Cloze with ID",
             "fields": {
                 "ID": self.uuid,
@@ -219,6 +232,14 @@ def get_bulleted_lines(lines: List[str]):
     return bulleted_lines
 
 
+def extract_tags(regex: Pattern, line: str) -> Tuple[Optional[str], str]:
+    match = re.match(regex, line)
+    if not match:
+        return None, line
+    before, tag, after = match.groups()
+    return tag, before + after
+
+
 def make_anki_request(action, **params):
     request_json = json.dumps({'action': action, 'params': params, 'version': 6}).encode('utf-8')
     try:
@@ -237,12 +258,18 @@ def make_anki_request(action, **params):
     return response['result']
 
 
+def get_full_deck_name(full_deck_names: List[str], maybe_deck_name: Optional[str]) -> str:
+    deck_name = maybe_deck_name or DEFAULT_DECK_NAME
+    return next(x for x in full_deck_names if deck_name in x.lower())
+
+
 class Command(BaseCommand):
     def handle(self, *args, **kwargs):
         print(datetime.today(), "Building dashboard...")
         pages = {os.path.basename(x).rstrip('.md'): open(x, 'r').read() for x in glob.glob(Filepaths.BACKUP_DIR.value) if os.path.isfile(x)}
         graph = Graph()
         flashcards: List[AnkiFlashcard] = []
+        full_deck_names = make_anki_request('deckNames')
 
         # Create nodes
         for page_title, page in pages.items():
@@ -274,14 +301,17 @@ class Command(BaseCommand):
                         continue
 
                     front_1, flashcard_uuid, front_2 = well_formatted_flashcard.groups()
-                    front = (front_1.strip() + " " + front_2.strip()).strip()
+                    front = front_1.strip() + " " + front_2.strip()
 
                     # Handle Cloze-style flashcards
                     is_cloze = re.search(CLOZE_REGEX, front)
                     if is_cloze:
                         front = re.sub(CLOZE_REGEX, lambda x: "{{c1::" + x.group(1) + "}}", front)
                         front = AnkiFlashcard.maybe_download_media_files_and_convert(front)
-                        flashcards.append(ClozeFlashcard(uuid=flashcard_uuid, front=front))
+
+                        maybe_deck_name, line = extract_tags(ANKI_DECK_TAG_REGEX, line)
+                        deck_name = get_full_deck_name(full_deck_names, maybe_deck_name)
+                        flashcards.append(ClozeFlashcard(uuid=flashcard_uuid, front=front, deck=deck_name))
                         continue
 
                     is_num_lines_long_enough = i + 1 < num_bulleted_lines
@@ -296,32 +326,33 @@ class Command(BaseCommand):
                         back = re.match(SANS_BULLET_REGEX, next_line).group(1).strip()
                         front = AnkiFlashcard.maybe_download_media_files_and_convert(front)
                         back = AnkiFlashcard.maybe_download_media_files_and_convert(back)
-                        flashcards.append(TwoSidedFlashcard(uuid=flashcard_uuid, front=front, back=back))
+
+                        maybe_deck_name, line = extract_tags(ANKI_DECK_TAG_REGEX, line)
+                        deck_name = get_full_deck_name(full_deck_names, maybe_deck_name)
+                        flashcards.append(TwoSidedFlashcard(uuid=flashcard_uuid, front=front, back=back, deck=deck_name))
+
                         continue
 
                     print(f"Flashcard improperly formatted (next line not indented): {line}\n{next_line}")
 
         try:
             make_anki_request('sync')
-            deck_name = next(x for x in make_anki_request('deckNames') if 'roam' in x.lower())
         except Exception:
             print("Waiting on sync...")
             time.sleep(5)
             try:
                 make_anki_request('sync')
-                deck_name = next(x for x in make_anki_request('deckNames') if 'roam' in x.lower())
             except Exception:
                 print("Waiting on sync...")
                 time.sleep(5)
                 make_anki_request('sync')
-                deck_name = next(x for x in make_anki_request('deckNames') if 'roam' in x.lower())
 
         # POST flashcards to AnkiConnect
         for flashcard in flashcards:
-            query = f"deck:{deck_name} ID:{flashcard.uuid}"
+            query = f"deck:{flashcard.deck} ID:{flashcard.uuid}"
             anki_ids = make_anki_request('findNotes', query=query)
             if len(anki_ids) == 0:
-                make_anki_request('addNote', note=flashcard.to_add_note_json(deck_name))
+                make_anki_request('addNote', note=flashcard.to_add_note_json())
             elif len(anki_ids) == 1:
                 make_anki_request('updateNoteFields', note=flashcard.to_update_note_fields_json(anki_ids[0]))
             else:
