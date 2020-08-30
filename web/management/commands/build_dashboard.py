@@ -307,7 +307,7 @@ class Command(BaseCommand):
                     is_cloze = re.search(CLOZE_REGEX, front)
                     if is_cloze:
                         front = re.sub(CLOZE_REGEX, lambda x: "{{c1::" + x.group(1) + "}}", front)
-                        front = AnkiFlashcard.maybe_download_media_files_and_convert(front)
+                        front = AnkiFlashcard.maybe_download_media_files_and_convert(front) + f"<hr/><div>{page_title}</div>"
 
                         maybe_deck_name, line = extract_tags(ANKI_DECK_TAG_REGEX, line)
                         deck_name = get_full_deck_name(full_deck_names, maybe_deck_name)
@@ -325,7 +325,7 @@ class Command(BaseCommand):
                     if next_line_is_indented:
                         back = re.match(SANS_BULLET_REGEX, next_line).group(1).strip()
                         front = AnkiFlashcard.maybe_download_media_files_and_convert(front)
-                        back = AnkiFlashcard.maybe_download_media_files_and_convert(back)
+                        back = AnkiFlashcard.maybe_download_media_files_and_convert(back) + f"<hr/><div>{page_title}</div>"
 
                         maybe_deck_name, line = extract_tags(ANKI_DECK_TAG_REGEX, line)
                         deck_name = get_full_deck_name(full_deck_names, maybe_deck_name)
