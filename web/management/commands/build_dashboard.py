@@ -6,7 +6,6 @@ import time
 from datetime import date, datetime, timedelta
 from enum import Enum
 from itertools import islice
-from re import Pattern
 from statistics import mean
 from typing import List
 from typing import Optional
@@ -15,6 +14,7 @@ from uuid import UUID
 
 import attr
 import numpy as np
+import requests
 from dateutil.parser import parse
 from django.contrib.admin.utils import flatten
 from django.core.management import BaseCommand
@@ -24,6 +24,11 @@ from networkx import Graph
 import urllib.request
 import urllib.parse as urlparse
 from urllib.parse import unquote
+from dotenv import load_dotenv
+
+
+load_dotenv()
+SLACK_URL = os.getenv('SLACK_URL')
 
 
 class Tags(Enum):
@@ -141,6 +146,11 @@ def get_shares_metric():
     return round(np.interp(score, [0, 1/14, 1/7, 0.25, 0.5, 1], [0, 1, 2, 3, 4, 5]), 1)
 
 
+def post_slack(message):
+    data = {"channel": "#worldview-flashcards-dev", "username": "Worldview Flashcards", "text": message, "icon_emoji": ":sparkles:"}
+    return requests.post(os.getenv("SLACK_URL"), data=json.dumps(data), headers={"Content-Type": "application/json"})
+
+
 @attr.s
 class AnkiFlashcard:
     uuid: UUID = attr.ib()
@@ -232,7 +242,7 @@ def get_bulleted_lines(lines: List[str]):
     return bulleted_lines
 
 
-def extract_tags(regex: Pattern, line: str) -> Tuple[Optional[str], str]:
+def extract_tags(regex, line: str) -> Tuple[Optional[str], str]:
     match = re.match(regex, line)
     if not match:
         return None, line
@@ -297,7 +307,7 @@ class Command(BaseCommand):
                 if f"#{Tags.FLASHCARD.value}" in line:
                     well_formatted_flashcard = re.match(FLASHCARD_FRONT_REGEX, line)
                     if not well_formatted_flashcard:
-                        print(f"Flashcard front improperly formatted: {line}")
+                        post_slack(f"Flashcard front improperly formatted: {line}")
                         continue
 
                     front_1, flashcard_uuid, front_2 = well_formatted_flashcard.groups()
@@ -316,7 +326,7 @@ class Command(BaseCommand):
 
                     is_num_lines_long_enough = i + 1 < num_bulleted_lines
                     if not is_num_lines_long_enough:
-                        print(f"Flashcard is missing a back: {line}")
+                        post_slack(f"Flashcard is missing a back: {line}")
                         continue
 
                     # Handle two-sided flashcards
@@ -333,7 +343,7 @@ class Command(BaseCommand):
 
                         continue
 
-                    print(f"Flashcard improperly formatted (next line not indented): {line}\n{next_line}")
+                    post_slack(f"Flashcard improperly formatted (next line not indented): {line}\n{next_line}")
 
         try:
             make_anki_request('sync')
