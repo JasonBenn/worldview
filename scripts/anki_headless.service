@@ -2,7 +2,7 @@
 Description=Anki (Headless)
 
 [Service]
-Type=simple
+Type=forking
 User=flock
 WorkingDirectory=/home/flock/worldview
 ExecStart=/bin/bash /home/flock/worldview/scripts/anki_headless.sh
